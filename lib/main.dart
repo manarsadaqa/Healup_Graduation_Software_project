@@ -34,7 +34,7 @@ class MyApp extends StatelessWidget {
       builder: (context, themeNotifier, child) {
         return MaterialApp(
           theme: themeNotifier.currentTheme, // Apply the current theme
-          home:  PatientPage(),
+          home:  WelcomePage(),
           routes: {
             "signup": (context) => const PatSignUpPage(),
             "login": (context) =>  PatLoginPage(),

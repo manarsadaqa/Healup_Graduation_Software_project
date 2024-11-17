@@ -9,7 +9,7 @@ class AllDoctorsPage extends StatefulWidget {
 
 class _AllDoctorsPageState extends State<AllDoctorsPage> {
   List<Map<String, dynamic>> allDoctors = [];  // List of all doctors
-  List<String> specialties = ['All','Cardiology', 'Pediatrics', 'Neurology', 'Orthopedics', 'Dermatology']; // Example specialties
+  List<String> specialties = ['All','General','Cardiology', 'Pediatrics', 'Neurology', 'Orthopedics', 'Dermatology']; // Example specialties
   String selectedSpecialty = 'All'; // Track the selected specialty
   String searchText = ''; // To store search query
 

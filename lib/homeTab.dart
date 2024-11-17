@@ -1,18 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart'; // Import the package
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'patApp.dart'; // Import the PatApp page
 import 'package:http/http.dart' as http;
 import 'dart:convert'; // For parsing the JSON response
 import 'AllDoctorsPage.dart';
+import 'patApp.dart';
 
 class HomeTab extends StatefulWidget {
+
   final Function(Map<String, dynamic>) onAppointmentBooked;
   final Function(Map<String, dynamic>) onAppointmentCanceled;
+  final String userName; // Add a userName property
 
   const HomeTab({
     super.key,
     required this.onAppointmentBooked,
     required this.onAppointmentCanceled,
+    required this.userName, // Accept userName here
   });
 
   @override
@@ -21,13 +26,21 @@ class HomeTab extends StatefulWidget {
 
 class _HomeTabState extends State<HomeTab> {
   List<Map<String, dynamic>> doctors = [];
-
+  String userName = "";
   @override
   void initState() {
     super.initState();
     fetchDoctors();
+    _getUserName();
   }
 
+  Future<void> _getUserName() async {
+    final storage = FlutterSecureStorage();
+    String? storedName = await storage.read(key: 'patient_name');
+    setState(() {
+      userName = storedName ?? "Patient"; // Default to "Patient" if the name is not found
+    });
+  }
   // Fetch doctors from the backend
   Future<void> fetchDoctors() async {
     final response = await http.get(Uri.parse('http://localhost:5000/api/healup/doctors/doctors'));
@@ -35,14 +48,17 @@ class _HomeTabState extends State<HomeTab> {
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
       setState(() {
-        // Sort doctors by reviews in descending order and limit to 5
         doctors = data.map((doctor) => {
           'name': doctor['name'],
           'photo': doctor['photo'],
           'hospital': doctor['hospital'],
           'specialization': doctor['specialization'],
-          'reviews': doctor['reviews'],
-          'rating': doctor['rating'],
+          'reviews': int.parse(doctor['reviews'].toString()),
+          'rating': double.parse(doctor['rating'].toString()),
+          'price': double.parse(doctor['pricePerHour'].toString()),
+          'yearExperience': int.parse(doctor['yearExperience'].toString()),
+          'availability': doctor['availability'],
+          'address': doctor['address']
         }).toList()
           ..sort((a, b) => b['reviews'].compareTo(a['reviews'])) // Sort by reviews (descending)
           ..take(5); // Limit to top 5 doctors
@@ -93,16 +109,16 @@ class _HomeTabState extends State<HomeTab> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Hi, Dana!',
-                          style: TextStyle(
+                        // Display the user name dynamically
+                        Text(
+                          'Hi, $userName!',  // Greet the user by their name
+                          style: const TextStyle(
                               fontSize: 24, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 8),
-                        Text(
+                         Text(
                           'How are you today?',
-                          style:
-                          TextStyle(fontSize: 18, color: Colors.grey[800]),
+                          style: TextStyle(fontSize: 18, color: Colors.grey[800]),
                         ),
                       ],
                     ),
@@ -204,6 +220,12 @@ class _HomeTabState extends State<HomeTab> {
                       specialization: doctor['specialization'],
                       reviews: doctor['reviews'],
                       rating: doctor['rating'],
+                      price: doctor['price'],
+                      availability: doctor['availability'],
+                      yearExperience: doctor['yearExperience'],
+                      address: doctor['address'],
+                      onAppointmentBooked: widget.onAppointmentBooked, // Pass the callback
+                      onAppointmentCanceled: widget.onAppointmentCanceled, // Pass the callback
                     );
                   },
                 ),
@@ -225,6 +247,12 @@ class DoctorCard extends StatelessWidget {
   final String specialization;
   final int reviews;
   final double rating;
+  final double price;
+  final int yearExperience;
+  final String availability;
+  final String address;
+  final Function(Map<String, dynamic>) onAppointmentBooked;
+  final Function(Map<String, dynamic>) onAppointmentCanceled;
 
   const DoctorCard({
     super.key,
@@ -234,6 +262,12 @@ class DoctorCard extends StatelessWidget {
     required this.specialization,
     required this.reviews,
     required this.rating,
+    required this.price,
+    required this.availability,
+    required this.yearExperience,
+    required this.address,
+    required this.onAppointmentBooked,
+    required this.onAppointmentCanceled,
   });
 
   @override
@@ -276,10 +310,32 @@ class DoctorCard extends StatelessWidget {
             ),
           ],
         ),
+        // Inside DoctorCard widget
+        onTap: () {
+          // When the doctor card is tapped, navigate to the PatApp page
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PatApp(
+                name: name,
+                specialization: specialization,
+                photo: photo,
+                address:address ,
+                availability:availability ,
+                yearsOfExperience: yearExperience,
+                price: price,
+                onAppointmentBooked: onAppointmentBooked,
+              ),
+            ),
+          );
+        },
       ),
     );
   }
 }
+
+
+
 
 class DoctorSpecialityCard extends StatelessWidget {
   final IconData icon;

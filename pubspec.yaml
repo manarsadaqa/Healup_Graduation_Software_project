@@ -58,6 +58,8 @@ dev_dependencies:
   intl: ^0.20.0  # Add this line
   awesome_dialog: ^3.2.1
   uni_links: ^0.5.1
+  flutter_secure_storage: ^5.0.2  # Ensure you're using a compatible version
+
 
 
 
@@ -105,6 +107,7 @@ flutter:
      - images/google.png
      - images/back2.jpg
      - images/Alice_Johnson.jpg
+     - images/Kathryn_Barlow.jpg
 
 
 

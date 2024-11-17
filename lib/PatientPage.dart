@@ -18,6 +18,7 @@ class _PatientPageState extends State<PatientPage> {
   late List<Widget> _pages; // Use late modifier to defer initialization
 
   final List<Map<String, dynamic>> appointments = [];
+  final String userName = "John"; // For example, this could be fetched dynamically
 
   void _onAppointmentBooked(Map<String, dynamic> newAppointment) {
     setState(() {
@@ -36,18 +37,17 @@ class _PatientPageState extends State<PatientPage> {
     super.initState();
     _pages = [
       HomeTab(
-        // Ensure this is the correct class name
+        // Pass the userName here
+        userName: userName, // Pass the dynamic user name
         onAppointmentBooked: _onAppointmentBooked, // Pass the booking callback
-        onAppointmentCanceled:
-            _onAppointmentCanceled, // Pass the cancellation callback
+        onAppointmentCanceled: _onAppointmentCanceled, // Pass the cancellation callback
       ),
       const DiagnosisChat(),
       const SearchMedicinePage(),
       ScheduleScreen(
         appointments: appointments,
         onAppointmentBooked: _onAppointmentBooked,
-        onAppointmentCanceled:
-            _onAppointmentCanceled, // Make sure to also pass this
+        onAppointmentCanceled: _onAppointmentCanceled, // Pass the same callbacks
       ),
       const PatProfile(),
     ];

@@ -82,7 +82,11 @@ class _PatLoginPageState extends State<PatLoginPage> {
         if (response.statusCode == 200) {
           final responseData = json.decode(response.body);
           if (responseData['_id'] != null) {
+            // Save the patient's name and token in secure storage
             await _storage.write(key: 'auth_token', value: responseData['_id']);
+            await _storage.write(key: 'patient_name', value: responseData['name']);  // Store the name
+
+            // Navigate to the PatientPage
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(builder: (context) => PatientPage()),
             );
@@ -98,6 +102,7 @@ class _PatLoginPageState extends State<PatLoginPage> {
       }
     }
   }
+
 
   void _showErrorDialog(String message) {
     AwesomeDialog(

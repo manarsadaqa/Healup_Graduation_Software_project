@@ -1,23 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'map_screen.dart';
-import 'ScheduleScreen.dart';
 import 'package:intl/intl.dart';
+import 'map_screen.dart';
 
 class PatApp extends StatefulWidget {
-  final String doctorName;
-  final String doctorSpecialization;
-  final String doctorPhoto; // This will be the local asset path
+  final String name;
+  final String specialization;
+  final String photo;
+  final String address; // Dynamic address from database
+  final String availability; // Dynamic availability from database
+  final int yearsOfExperience; // Dynamic years of experience from database
+  final double price; // Dynamic price per hour from database
   final Function(Map<String, String>) onAppointmentBooked;
-  final Function(Map<String, String>) onAppointmentCanceled;
 
   const PatApp({
     super.key,
-    required this.doctorName,
-    required this.doctorSpecialization,
-    required this.doctorPhoto, // Expecting the asset path for local images
+    required this.name,
+    required this.specialization,
+    required this.photo,
+    required this.address,
+    required this.availability,
+    required this.yearsOfExperience,
+    required this.price,
     required this.onAppointmentBooked,
-    required this.onAppointmentCanceled,
   });
 
   @override
@@ -29,11 +34,71 @@ class _PatAppState extends State<PatApp> {
   String? selectedTime;
   final Map<String, Set<String>> reservedTimesByDate = {};
 
+  // Function to generate time intervals
+  List<String> generateTimeIntervals(String availability) {
+    // Split the availability into start and end times
+    final parts = availability.split(' - ');
+    if (parts.length != 2) {
+      return []; // Invalid format
+    }
+
+    String startTimeStr = parts[0].trim();
+    String endTimeStr = parts[1].trim();
+
+    // Parse start and end times manually
+    DateTime start = _parseTime(startTimeStr);
+    DateTime end = _parseTime(endTimeStr);
+
+    // Generate time intervals
+    List<String> intervals = [];
+    DateTime current = start;
+
+    while (current.isBefore(end)) {
+      DateTime next = current.add(const Duration(hours: 1));
+      if (next.isAfter(end)) {
+        intervals.add("${_formatTime(current)} - ${_formatTime(end)}");
+      } else {
+        intervals.add("${_formatTime(current)} - ${_formatTime(next)}");
+      }
+      current = next;
+    }
+
+    return intervals;
+  }
+
+  // Manually parse time string into DateTime (e.g., "10:00 AM" or "3:00 PM")
+  DateTime _parseTime(String timeStr) {
+    int hour = int.parse(timeStr.split(":")[0].trim());
+    int minute = int.parse(timeStr.split(":")[1].split(" ")[0].trim());
+    String period = timeStr.split(" ")[1].trim().toUpperCase(); // AM/PM
+
+    // Convert hour to 24-hour format based on AM/PM
+    if (period == "PM" && hour < 12) {
+      hour += 12; // Convert PM times to 24-hour format
+    } else if (period == "AM" && hour == 12) {
+      hour = 0; // Convert 12 AM to 00 hours
+    }
+
+    // Create DateTime object for the parsed time
+    return DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day, hour, minute);
+  }
+
+  // Format DateTime object back into "h:mm AM/PM"
+  String _formatTime(DateTime time) {
+    return DateFormat.jm().format(time); // e.g., "10:00 AM"
+  }
+
+
+
+
+
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.doctorName),
+        title: Text(widget.name),
         backgroundColor: const Color(0xff6be4d7),
       ),
       body: Stack(
@@ -69,8 +134,7 @@ class _PatAppState extends State<PatApp> {
                         ),
                         child: CircleAvatar(
                           radius: 50,
-                          backgroundImage: AssetImage(
-                              widget.doctorPhoto), // Change to AssetImage
+                          backgroundImage: AssetImage(widget.photo),
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -79,26 +143,26 @@ class _PatAppState extends State<PatApp> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              widget.doctorName,
+                              widget.name,
                               style: const TextStyle(
                                   fontSize: 24, fontWeight: FontWeight.bold),
                             ),
                             Text(
-                              widget.doctorSpecialization,
+                              widget.specialization,
                               style: const TextStyle(
                                   fontSize: 18, color: Colors.grey),
                             ),
-                            const Text(
-                              '14 years Experience',
-                              style: TextStyle(fontSize: 16),
+                            Text(
+                              '${widget.yearsOfExperience} years Experience',
+                              style: const TextStyle(fontSize: 16),
                             ),
                             const Text(
                               '2456 Patients',
                               style: TextStyle(fontSize: 16),
                             ),
-                            const Text(
-                              '\$20/hr',
-                              style: TextStyle(
+                            Text(
+                              '\$${widget.price}/hr',
+                              style: const TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
                                   color: Color(0xff2f9a8f)),
@@ -119,16 +183,18 @@ class _PatAppState extends State<PatApp> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const MapScreen(
-                                address: '123 Health St, Ramallah, Palestine',
-                                location: LatLng(31.9022, 35.2034),
-                              ),
+                              builder: (context) =>
+                                  MapScreen(
+                                    address: widget.address,
+                                    location: LatLng(
+                                        31.9022, 35.2034), // Dummy coordinates
+                                  ),
                             ),
                           );
                         },
-                        child: const Text(
-                          '123 Health St, Ramallah, Palestine',
-                          style: TextStyle(
+                        child: Text(
+                          widget.address,
+                          style: const TextStyle(
                               fontSize: 15,
                               color: Colors.blue,
                               fontWeight: FontWeight.bold),
@@ -167,21 +233,17 @@ class _PatAppState extends State<PatApp> {
                   ),
                   const SizedBox(height: 10),
                   Column(
-                    children: [
-                      _buildTimeButton('8:00 AM'),
-                      _buildTimeButton('8:30 AM'),
-                      _buildTimeButton('8:45 AM'),
-                      _buildTimeButton('9:00 AM'),
-                      _buildTimeButton('9:30 AM'),
-                      _buildTimeButton('10:00 AM'),
-                    ],
+                    children: generateTimeIntervals(widget.availability)
+                        .map((time) => _buildTimeButton(time))
+                        .toList(),
                   ),
+
                   const SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: selectedDate != null && selectedTime != null
                         ? () {
-                            _bookAppointment(context);
-                          }
+                      _bookAppointment(context);
+                    }
                         : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xff6be4d7),
@@ -207,10 +269,9 @@ class _PatAppState extends State<PatApp> {
 
   void _bookAppointment(BuildContext context) {
     final appointment = {
-      'doctorName': widget.doctorName,
+      'doctorName': widget.name,
       'date': selectedDate!,
       'time': selectedTime!,
-      'doctorPhoto': widget.doctorPhoto, // Save doctor's photo URL here
     };
 
     widget.onAppointmentBooked(appointment);
@@ -225,20 +286,8 @@ class _PatAppState extends State<PatApp> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
           content: Text(
-              "Appointment booked on $selectedDate at $selectedTime with Dr. ${widget.doctorName}")),
+              "Appointment booked on $selectedDate at $selectedTime with Dr. ${widget.name}")),
     );
-  }
-
-  void _onAppointmentCanceled(Map<String, dynamic> appointment) {
-    final canceledDate = appointment['date'];
-    final canceledTime = appointment['time'];
-
-    setState(() {
-      reservedTimesByDate[canceledDate]?.remove(canceledTime);
-      if (reservedTimesByDate[canceledDate]?.isEmpty ?? false) {
-        reservedTimesByDate.remove(canceledDate);
-      }
-    });
   }
 
   int _daysInMonth() {
@@ -294,26 +343,25 @@ class _PatAppState extends State<PatApp> {
   }
 
   Widget _buildTimeButton(String time) {
-    final isReserved =
-        reservedTimesByDate[selectedDate]?.contains(time) ?? false;
+    final isReserved = reservedTimesByDate[selectedDate]?.contains(time) ?? false;
     final isSelected = selectedTime == time && !isReserved;
 
     return GestureDetector(
       onTap: !isReserved
           ? () {
-              setState(() {
-                selectedTime = time;
-              });
-            }
-          : null,
+        setState(() {
+          selectedTime = time; // Set the selected time when tapped
+        });
+      }
+          : null, // Don't allow selection if the time is reserved
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
         decoration: BoxDecoration(
           color: isReserved
-              ? Colors.grey
-              : (isSelected ? const Color(0xff6be4d7) : Colors.transparent),
+              ? Colors.grey // Reserved times are greyed out
+              : (isSelected ? const Color(0xff6be4d7) : Colors.transparent), // Selected times are highlighted
           borderRadius: BorderRadius.circular(25),
-          border: Border.all(color: isReserved ? Colors.grey : Colors.grey),
+          border: Border.all(color: isReserved ? Colors.grey : Colors.grey), // Border color
         ),
         padding: const EdgeInsets.all(12),
         child: Center(
@@ -321,9 +369,8 @@ class _PatAppState extends State<PatApp> {
             time,
             style: TextStyle(
               fontSize: 18,
-              fontWeight:
-                  isReserved || isSelected ? FontWeight.bold : FontWeight.w400,
-              color: isReserved ? Colors.black45 : Colors.black,
+              fontWeight: isReserved || isSelected ? FontWeight.bold : FontWeight.w400,
+              color: isReserved ? Colors.black45 : Colors.black, // Text color based on state
             ),
           ),
         ),
