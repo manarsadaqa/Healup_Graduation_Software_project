@@ -3,23 +3,31 @@ import 'package:http/http.dart' as http;
 import 'dart:convert'; // For parsing the JSON response
 
 class AllDoctorsPage extends StatefulWidget {
+  final String? initialSpecialty; // Accept an optional initial specialty
+
+  const AllDoctorsPage({Key? key, this.initialSpecialty}) : super(key: key);
+
   @override
   _AllDoctorsPageState createState() => _AllDoctorsPageState();
 }
 
 class _AllDoctorsPageState extends State<AllDoctorsPage> {
-  List<Map<String, dynamic>> allDoctors = [];  // List of all doctors
-  List<String> specialties = ['All','General','Cardiology', 'Pediatrics', 'Neurology', 'Orthopedics', 'Dermatology']; // Example specialties
-  String selectedSpecialty = 'All'; // Track the selected specialty
-  String searchText = ''; // To store search query
+  List<Map<String, dynamic>> allDoctors = [];
+  List<String> specialties = ['All', 'General', 'Cardiology', 'Pediatrics', 'Neurology', 'Orthopedics', 'Dermatology'];
+  String selectedSpecialty = 'All';
+  String searchText = '';
 
   @override
   void initState() {
     super.initState();
     fetchAllDoctors();
+    if (widget.initialSpecialty != null) {
+      setState(() {
+        selectedSpecialty = widget.initialSpecialty!;
+      });
+    }
   }
 
-  // Fetch all doctors from the backend
   Future<void> fetchAllDoctors() async {
     final response = await http.get(Uri.parse('http://localhost:5000/api/healup/doctors/doctors'));
 
@@ -40,21 +48,18 @@ class _AllDoctorsPageState extends State<AllDoctorsPage> {
     }
   }
 
-  // Filter doctors based on the selected specialty and search query
   List<Map<String, dynamic>> getFilteredDoctors() {
     List<Map<String, dynamic>> filteredDoctors = allDoctors;
 
-    // Apply search filter
     if (searchText.isNotEmpty) {
       filteredDoctors = filteredDoctors.where((doctor) {
         return doctor['name'].toLowerCase().contains(searchText.toLowerCase());
       }).toList();
     }
 
-    // Apply specialty filter
     if (selectedSpecialty != 'All') {
       filteredDoctors = filteredDoctors.where((doctor) {
-        return doctor['specialization'] == selectedSpecialty; // Filter by specialization
+        return doctor['specialization'] == selectedSpecialty;
       }).toList();
     }
 

@@ -2,19 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'map_screen.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class PatApp extends StatefulWidget {
   final String name;
   final String specialization;
   final String photo;
-  final String address; // Dynamic address from database
-  final String availability; // Dynamic availability from database
-  final int yearsOfExperience; // Dynamic years of experience from database
-  final double price; // Dynamic price per hour from database
+  final String address;
+  final String availability;
+  final int yearsOfExperience;
+  final double price;
+  final String patientId;
+  final String doctorId;
   final Function(Map<String, String>) onAppointmentBooked;
 
   const PatApp({
-    super.key,
+    Key? key,
     required this.name,
     required this.specialization,
     required this.photo,
@@ -22,8 +26,10 @@ class PatApp extends StatefulWidget {
     required this.availability,
     required this.yearsOfExperience,
     required this.price,
+    required this.patientId,
+    required this.doctorId,
     required this.onAppointmentBooked,
-  });
+  }) : super(key: key);
 
   @override
   _PatAppState createState() => _PatAppState();
@@ -34,65 +40,80 @@ class _PatAppState extends State<PatApp> {
   String? selectedTime;
   final Map<String, Set<String>> reservedTimesByDate = {};
 
-  // Function to generate time intervals
+  // Generate time intervals (30-minute slots)
   List<String> generateTimeIntervals(String availability) {
-    // Split the availability into start and end times
     final parts = availability.split(' - ');
     if (parts.length != 2) {
-      return []; // Invalid format
+      return [];
     }
 
-    String startTimeStr = parts[0].trim();
-    String endTimeStr = parts[1].trim();
+    DateTime start = _parseTime(parts[0].trim());
+    DateTime end = _parseTime(parts[1].trim());
 
-    // Parse start and end times manually
-    DateTime start = _parseTime(startTimeStr);
-    DateTime end = _parseTime(endTimeStr);
-
-    // Generate time intervals
     List<String> intervals = [];
     DateTime current = start;
 
     while (current.isBefore(end)) {
-      DateTime next = current.add(const Duration(hours: 1));
-      if (next.isAfter(end)) {
-        intervals.add("${_formatTime(current)} - ${_formatTime(end)}");
-      } else {
-        intervals.add("${_formatTime(current)} - ${_formatTime(next)}");
-      }
+      DateTime next = current.add(const Duration(minutes: 30));  // 30-minute slots
+      intervals.add("${_formatTime(current)} - ${_formatTime(next)}");
       current = next;
     }
 
     return intervals;
   }
 
-  // Manually parse time string into DateTime (e.g., "10:00 AM" or "3:00 PM")
   DateTime _parseTime(String timeStr) {
     int hour = int.parse(timeStr.split(":")[0].trim());
     int minute = int.parse(timeStr.split(":")[1].split(" ")[0].trim());
-    String period = timeStr.split(" ")[1].trim().toUpperCase(); // AM/PM
+    String period = timeStr.split(" ")[1].trim().toUpperCase();
 
-    // Convert hour to 24-hour format based on AM/PM
     if (period == "PM" && hour < 12) {
-      hour += 12; // Convert PM times to 24-hour format
+      hour += 12;
     } else if (period == "AM" && hour == 12) {
-      hour = 0; // Convert 12 AM to 00 hours
+      hour = 0;
     }
 
-    // Create DateTime object for the parsed time
     return DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day, hour, minute);
   }
 
-  // Format DateTime object back into "h:mm AM/PM"
   String _formatTime(DateTime time) {
-    return DateFormat.jm().format(time); // e.g., "10:00 AM"
+    return DateFormat.jm().format(time);  // e.g., "10:00 AM"
   }
 
+  Future<void> bookAppointmentToBackend(String date, String time) async {
+    final apiUrl = "http://localhost:5000/api/healup/appointments/book";
+    try {
+      final day = date.split(' ')[0];
+      final formattedDate = "$day/${DateTime.now().month.toString().padLeft(2, '0')}";
 
+      final appointmentDateTime = "$formattedDate $time";
 
+      final response = await http.post(
+        Uri.parse(apiUrl),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "patient_id": widget.patientId,
+          "doctor_id": widget.doctorId,
+          "app_date": appointmentDateTime,
+        }),
+      );
 
-
-
+      if (response.statusCode == 201) {
+        final responseData = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Appointment successfully booked!")),
+        );
+      } else {
+        final responseData = jsonDecode(response.body);
+        throw Exception(responseData["message"] ?? "Failed to book appointment.");
+      }
+    } catch (error) {
+      print("Error booking appointment: $error");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: Unable to book appointment.")),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -267,36 +288,8 @@ class _PatAppState extends State<PatApp> {
     );
   }
 
-  void _bookAppointment(BuildContext context) {
-    final appointment = {
-      'doctorName': widget.name,
-      'date': selectedDate!,
-      'time': selectedTime!,
-    };
-
-    widget.onAppointmentBooked(appointment);
-
-    setState(() {
-      reservedTimesByDate
-          .putIfAbsent(selectedDate!, () => {})
-          .add(selectedTime!);
-      selectedTime = null;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text(
-              "Appointment booked on $selectedDate at $selectedTime with Dr. ${widget.name}")),
-    );
-  }
-
-  int _daysInMonth() {
-    final now = DateTime.now();
-    final nextMonth = DateTime(now.year, now.month + 1, 1);
-    return nextMonth.subtract(const Duration(days: 1)).day;
-  }
-
-  Widget _buildDateButton(String day, String date) {
+  Widget _buildDateButton(String dayName, String dayNumber) {
+    final date = "$dayNumber"; // Combine day name and number for date representation
     final isSelected = selectedDate == date;
 
     return GestureDetector(
@@ -320,7 +313,7 @@ class _PatAppState extends State<PatApp> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              day,
+              dayName,
               style: TextStyle(
                 fontSize: 18,
                 color: isSelected ? const Color(0xff6be4d7) : Colors.black,
@@ -329,7 +322,7 @@ class _PatAppState extends State<PatApp> {
             ),
             const SizedBox(height: 4),
             Text(
-              date,
+              dayNumber,
               style: TextStyle(
                 fontSize: 18,
                 color: isSelected ? const Color(0xff6be4d7) : Colors.black,
@@ -376,5 +369,15 @@ class _PatAppState extends State<PatApp> {
         ),
       ),
     );
+  }
+
+  int _daysInMonth() {
+    return DateTime(DateTime.now().year, DateTime.now().month + 1, 0).day;
+  }
+
+  void _bookAppointment(BuildContext context) {
+    if (selectedDate != null && selectedTime != null) {
+      bookAppointmentToBackend(selectedDate!, selectedTime!);
+    }
   }
 }

@@ -85,6 +85,7 @@ class _PatLoginPageState extends State<PatLoginPage> {
             // Save the patient's name and token in secure storage
             await _storage.write(key: 'auth_token', value: responseData['_id']);
             await _storage.write(key: 'patient_name', value: responseData['name']);  // Store the name
+            await _storage.write(key: 'patient_id', value: responseData['_id']);  // Store patient ID
 
             // Navigate to the PatientPage
             Navigator.of(context).pushReplacement(

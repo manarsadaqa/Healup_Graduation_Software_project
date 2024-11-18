@@ -6,18 +6,19 @@ import 'package:http/http.dart' as http;
 import 'dart:convert'; // For parsing the JSON response
 import 'AllDoctorsPage.dart';
 import 'patApp.dart';
+import 'login.dart';
 
 class HomeTab extends StatefulWidget {
-
   final Function(Map<String, dynamic>) onAppointmentBooked;
   final Function(Map<String, dynamic>) onAppointmentCanceled;
-  final String userName; // Add a userName property
+  final String userName;
+
 
   const HomeTab({
     super.key,
     required this.onAppointmentBooked,
     required this.onAppointmentCanceled,
-    required this.userName, // Accept userName here
+    required this.userName,
   });
 
   @override
@@ -27,28 +28,44 @@ class HomeTab extends StatefulWidget {
 class _HomeTabState extends State<HomeTab> {
   List<Map<String, dynamic>> doctors = [];
   String userName = "";
+  String patientId = ""; // Add a variable to store the patient ID
+  final FlutterSecureStorage _storage = FlutterSecureStorage(); // Declare the storage instance
+
+
   @override
   void initState() {
     super.initState();
     fetchDoctors();
     _getUserName();
+    _getPatientId(); // Fetch the patient ID when the screen initializes
+
   }
 
   Future<void> _getUserName() async {
     final storage = FlutterSecureStorage();
     String? storedName = await storage.read(key: 'patient_name');
     setState(() {
-      userName = storedName ?? "Patient"; // Default to "Patient" if the name is not found
+      userName = storedName ?? "Patient";
     });
   }
-  // Fetch doctors from the backend
+
+  Future<void> _getPatientId() async {
+    String? id = await _storage.read(key: 'patient_id');
+    setState(() {
+      patientId = id ?? ""; // Set the patientId to an empty string if it's not found
+    });
+  }
+
+
   Future<void> fetchDoctors() async {
     final response = await http.get(Uri.parse('http://localhost:5000/api/healup/doctors/doctors'));
 
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
       setState(() {
-        doctors = data.map((doctor) => {
+        doctors = data
+            .map((doctor) => {
+          '_id': doctor['_id'],  // Include doctor ID
           'name': doctor['name'],
           'photo': doctor['photo'],
           'hospital': doctor['hospital'],
@@ -58,18 +75,25 @@ class _HomeTabState extends State<HomeTab> {
           'price': double.parse(doctor['pricePerHour'].toString()),
           'yearExperience': int.parse(doctor['yearExperience'].toString()),
           'availability': doctor['availability'],
-          'address': doctor['address']
-        }).toList()
+          'address': doctor['address'],
+        })
+            .toList()
           ..sort((a, b) => b['reviews'].compareTo(a['reviews'])) // Sort by reviews (descending)
-          ..take(5); // Limit to top 5 doctors
+          ..take(5); // Show up to 5 doctors
       });
     } else {
       throw Exception('Failed to load doctors');
     }
   }
 
+
+
   @override
   Widget build(BuildContext context) {
+    print("Patient ID in build method: $patientId");  // Debugging line
+    if (patientId.isEmpty) {
+      return const Center(child: CircularProgressIndicator());  // Or a message for missing patientId
+    }
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xff6be4d7),
@@ -93,7 +117,7 @@ class _HomeTabState extends State<HomeTab> {
         children: [
           Positioned.fill(
             child: Image.asset(
-              'images/pat.jpg', // Replace with your image path
+              'images/pat.jpg',
               fit: BoxFit.cover,
             ),
           ),
@@ -102,21 +126,19 @@ class _HomeTabState extends State<HomeTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Welcome section
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Display the user name dynamically
                         Text(
-                          'Hi, $userName!',  // Greet the user by their name
+                          'Hi, $userName!',
                           style: const TextStyle(
                               fontSize: 24, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 8),
-                         Text(
+                        Text(
                           'How are you today?',
                           style: TextStyle(fontSize: 18, color: Colors.grey[800]),
                         ),
@@ -131,19 +153,15 @@ class _HomeTabState extends State<HomeTab> {
                     ),
                   ],
                 ),
-
-                // Image section
                 ClipRRect(
                   borderRadius: BorderRadius.circular(80),
                   child: Image.asset(
-                    'images/med.png', // Path to your image
+                    'images/med.png',
                     width: double.infinity,
                     height: 200,
                     fit: BoxFit.fitWidth,
                   ),
                 ),
-
-                // Specialties section
                 const Text(
                   'Doctor Speciality',
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
@@ -153,23 +171,49 @@ class _HomeTabState extends State<HomeTab> {
                   height: 100,
                   child: ListView(
                     scrollDirection: Axis.horizontal,
-                    children: const [
+                    children: [
                       DoctorSpecialityCard(
                         icon: Icons.medical_services,
                         title: 'General',
+                        onTap: () {
+                          _navigateToSpecialty('General');
+                        },
                       ),
                       DoctorSpecialityCard(
                         icon: FontAwesomeIcons.brain,
                         title: 'Neurologic',
+                        onTap: () {
+                          _navigateToSpecialty('Neurology');
+                        },
                       ),
                       DoctorSpecialityCard(
                         icon: FontAwesomeIcons.baby,
-                        title: 'Pediatric',
+                        title: 'Pediatrics',
+                        onTap: () {
+                          _navigateToSpecialty('Pediatrics');
+                        },
                       ),
                       DoctorSpecialityCard(
-                        icon: FontAwesomeIcons.xRay,
-                        title: 'Radiology',
+                        icon: FontAwesomeIcons.heartPulse,
+                        title: 'Cardiology',
+                        onTap: () {
+                          _navigateToSpecialty('Cardiology');
+                        },
                       ),
+                      DoctorSpecialityCard(
+                        icon: FontAwesomeIcons.bone,
+                        title: 'Orthopedics',
+                        onTap: () {
+                          _navigateToSpecialty('Orthopedics');
+                        },
+                      ),
+                      DoctorSpecialityCard(
+                        icon: FontAwesomeIcons.handSparkles,
+                        title: 'Dermatologic',
+                        onTap: () {
+                          _navigateToSpecialty('Dermatology');
+                        },
+                      )
                     ],
                   ),
                 ),
@@ -184,7 +228,6 @@ class _HomeTabState extends State<HomeTab> {
                     ),
                     TextButton(
                       onPressed: () {
-                        // Navigate to the AllDoctorsPage
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -203,17 +246,23 @@ class _HomeTabState extends State<HomeTab> {
                   ],
                 ),
                 const SizedBox(height: 10),
-
                 // Display doctors list here
                 doctors.isEmpty
                     ? const Center(child: CircularProgressIndicator())
-                    : ListView.builder(
+                    :ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: doctors.length > 5 ? 5 : doctors.length, // Show up to 5 doctors
                   itemBuilder: (context, index) {
                     final doctor = doctors[index];
+
+                    // Print the doctor ID to verify it's being passed
+                    print('Doctor ID: ${doctor['_id']}');
+                    print('Patent ID: $patientId');
+
                     return DoctorCard(
+                      patientId: patientId,
+                      doctorId: doctor['_id'],  // Pass the doctor ID
                       name: doctor['name'],
                       photo: doctor['photo'],
                       hospital: doctor['hospital'],
@@ -224,11 +273,12 @@ class _HomeTabState extends State<HomeTab> {
                       availability: doctor['availability'],
                       yearExperience: doctor['yearExperience'],
                       address: doctor['address'],
-                      onAppointmentBooked: widget.onAppointmentBooked, // Pass the callback
-                      onAppointmentCanceled: widget.onAppointmentCanceled, // Pass the callback
+                      onAppointmentBooked: widget.onAppointmentBooked,
+                      onAppointmentCanceled: widget.onAppointmentCanceled,
                     );
                   },
                 ),
+
               ],
             ),
           ),
@@ -236,11 +286,21 @@ class _HomeTabState extends State<HomeTab> {
       ),
     );
   }
+
+
+  void _navigateToSpecialty(String specialty) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => AllDoctorsPage(initialSpecialty: specialty),
+    ),
+  );
+}
 }
 
-
-
 class DoctorCard extends StatelessWidget {
+  final String patientId;
+  final String doctorId;  // Add the doctorId parameter
   final String name;
   final String photo;
   final String hospital;
@@ -256,6 +316,8 @@ class DoctorCard extends StatelessWidget {
 
   const DoctorCard({
     super.key,
+    required this.patientId,
+    required this.doctorId,  // Add the doctorId to the constructor
     required this.name,
     required this.photo,
     required this.hospital,
@@ -310,9 +372,11 @@ class DoctorCard extends StatelessWidget {
             ),
           ],
         ),
-        // Inside DoctorCard widget
         onTap: () {
-          // When the doctor card is tapped, navigate to the PatApp page
+          // Print doctorId to verify it's being passed correctly
+          print("Doctor tapped, ID: $doctorId");
+
+          // Pass the doctorId to the next page
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -320,10 +384,12 @@ class DoctorCard extends StatelessWidget {
                 name: name,
                 specialization: specialization,
                 photo: photo,
-                address:address ,
-                availability:availability ,
+                address: address,
+                availability: availability,
                 yearsOfExperience: yearExperience,
                 price: price,
+                patientId: patientId,
+                doctorId: doctorId,  // Pass the doctorId to PatApp
                 onAppointmentBooked: onAppointmentBooked,
               ),
             ),
@@ -337,34 +403,41 @@ class DoctorCard extends StatelessWidget {
 
 
 
+
+
 class DoctorSpecialityCard extends StatelessWidget {
   final IconData icon;
   final String title;
+  final VoidCallback onTap; // Added onTap callback
 
   const DoctorSpecialityCard({
     super.key,
     required this.icon,
     required this.title,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 120,
-      height: 100,
-      margin: const EdgeInsets.only(right: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xffeef7fe),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 40, color: const Color(0xff2f9a8f)),
-          const SizedBox(height: 8),
-          Text(title, textAlign: TextAlign.center),
-        ],
+    return GestureDetector(
+      onTap: onTap, // Wrap the Container with GestureDetector to handle taps
+      child: Container(
+        width: 120,
+        height: 100,
+        margin: const EdgeInsets.only(right: 16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xffeef7fe),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 40, color: const Color(0xff2f9a8f)),
+            const SizedBox(height: 8),
+            Text(title, textAlign: TextAlign.center),
+          ],
+        ),
       ),
     );
   }
