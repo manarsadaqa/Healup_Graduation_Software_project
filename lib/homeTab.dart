@@ -12,13 +12,14 @@ class HomeTab extends StatefulWidget {
   final Function(Map<String, dynamic>) onAppointmentBooked;
   final Function(Map<String, dynamic>) onAppointmentCanceled;
   final String userName;
-
+  final Function(String) onPatientIdReceived;
 
   const HomeTab({
     super.key,
     required this.onAppointmentBooked,
     required this.onAppointmentCanceled,
     required this.userName,
+    required this.onPatientIdReceived,
   });
 
   @override
@@ -52,8 +53,9 @@ class _HomeTabState extends State<HomeTab> {
   Future<void> _getPatientId() async {
     String? id = await _storage.read(key: 'patient_id');
     setState(() {
-      patientId = id ?? ""; // Set the patientId to an empty string if it's not found
+      patientId = id ?? "";
     });
+    widget.onPatientIdReceived(patientId); // Pass patientId to parent widget
   }
 
 

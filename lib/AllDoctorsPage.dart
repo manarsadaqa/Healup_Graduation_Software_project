@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert'; // For parsing the JSON response
-
+import 'patApp.dart';
 class AllDoctorsPage extends StatefulWidget {
   final String? initialSpecialty; // Accept an optional initial specialty
 
@@ -16,6 +16,7 @@ class _AllDoctorsPageState extends State<AllDoctorsPage> {
   List<String> specialties = ['All', 'General', 'Cardiology', 'Pediatrics', 'Neurology', 'Orthopedics', 'Dermatology'];
   String selectedSpecialty = 'All';
   String searchText = '';
+  String patientId = "patient-id"; // Add your patientId here or pass it from the parent widget
 
   @override
   void initState() {
@@ -34,14 +35,23 @@ class _AllDoctorsPageState extends State<AllDoctorsPage> {
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
       setState(() {
-        allDoctors = data.map((doctor) => {
+        allDoctors = data
+            .map((doctor) => {
+          '_id': doctor['_id'],  // Include doctor ID
           'name': doctor['name'],
           'photo': doctor['photo'],
           'hospital': doctor['hospital'],
           'specialization': doctor['specialization'],
-          'reviews': doctor['reviews'],
-          'rating': doctor['rating'],
-        }).toList();
+          'reviews': int.parse(doctor['reviews'].toString()),
+          'rating': double.parse(doctor['rating'].toString()),
+          'price': double.parse(doctor['pricePerHour'].toString()),
+          'yearExperience': int.parse(doctor['yearExperience'].toString()),
+          'availability': doctor['availability'],
+          'address': doctor['address'],
+        })
+            .toList()
+          ..sort((a, b) => b['reviews'].compareTo(a['reviews'])) // Sort by reviews (descending)
+          ..take(5); // Show up to 5 doctors
       });
     } else {
       throw Exception('Failed to load doctors');
@@ -158,12 +168,17 @@ class _AllDoctorsPageState extends State<AllDoctorsPage> {
                   itemBuilder: (context, index) {
                     final doctor = getFilteredDoctors()[index];
                     return DoctorCard(
+                      doctor_id: doctor['_id'],
                       name: doctor['name'],
                       photo: doctor['photo'],
                       hospital: doctor['hospital'],
                       specialization: doctor['specialization'],
+                      availability: doctor['availability'],
+                      price: doctor['price'],
                       reviews: doctor['reviews'],
                       rating: doctor['rating'],
+                      yearsOfExperience: doctor['yearExperience'],
+                      patientId: patientId,  // Pass patientId to DoctorCard
                     );
                   },
                 ),
@@ -176,63 +191,98 @@ class _AllDoctorsPageState extends State<AllDoctorsPage> {
   }
 }
 
+
 class DoctorCard extends StatelessWidget {
+  final String doctor_id;
   final String name;
   final String photo;
   final String hospital;
   final String specialization;
+  final String availability;
   final int reviews;
+  final double price;
+  final int yearsOfExperience;
   final double rating;
+  final String patientId;  // Add patientId parameter
 
   const DoctorCard({
     super.key,
+    required this.doctor_id,
     required this.name,
     required this.photo,
     required this.hospital,
     required this.specialization,
+    required this.availability,
     required this.reviews,
+    required this.price,
+    required this.yearsOfExperience,
     required this.rating,
+    required this.patientId,  // Include patientId in the constructor
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
-      elevation: 5,
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundImage: NetworkImage(photo),
-          radius: 25,
-        ),
-        title: Text(
-          name,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  '$specialization | ',
-                  style: const TextStyle(fontSize: 14, color: Colors.black),
-                ),
-                Text(
-                  hospital,
-                  style: const TextStyle(fontSize: 14, color: Colors.black),
-                ),
-              ],
+    return GestureDetector(
+      onTap: () {
+        // Navigate to PatApp when doctor card is tapped
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PatApp(
+              name: name,
+              specialization: specialization,
+              photo: photo,
+              address: hospital,  // You might want to pass hospital as address
+              availability: availability,  // You can customize this part as per your data
+              yearsOfExperience: yearsOfExperience,  // You can also pass the actual years of experience if available
+              price: price,  // Price for consultation, update as per your data
+              patientId: patientId,  // Pass patientId to PatApp
+              doctorId: doctor_id,  // You should replace with the actual doctor id
+              onAppointmentBooked: (appointmentDetails) {
+                // Handle appointment booking if needed
+              },
             ),
-            Row(
-              children: [
-                Icon(Icons.star, color: Colors.yellow[700], size: 16),
-                Text('$rating ($reviews reviews)'),
-              ],
-            ),
-          ],
+          ),
+        );
+      },
+      child: Card(
+        margin: const EdgeInsets.symmetric(vertical: 8.0),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        elevation: 5,
+        child: ListTile(
+          leading: CircleAvatar(
+            backgroundImage: NetworkImage(photo.isEmpty ? 'default-image-url' : photo),  // Handle empty photo
+            radius: 25,
+          ),
+          title: Text(
+            name.isNotEmpty ? name : 'No Name',  // Default if name is empty
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    '$specialization | ',
+                    style: const TextStyle(fontSize: 14, color: Colors.black),
+                  ),
+                  Text(
+                    hospital.isNotEmpty ? hospital : 'No Hospital',  // Default if hospital is empty
+                    style: const TextStyle(fontSize: 14, color: Colors.black),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  Icon(Icons.star, color: Colors.yellow[700], size: 16),
+                  Text('$rating ($reviews reviews)'),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

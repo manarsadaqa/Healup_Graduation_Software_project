@@ -204,11 +204,9 @@ class _MedicinePageState extends State<SearchMedicinePage> {
                           });
                         },
                         backgroundColor: const Color(0xff0C969C),
-                        selectedColor: Colors.white,
+                        selectedColor: Color(0xff6be4d7),
                         labelStyle: TextStyle(
-                          color: _selectedCategory == category
-                              ? const Color(0xff0C969C)
-                              : Colors.white,
+                          color: Colors.white,
                           fontSize: 15,
                         ),
                         shape: RoundedRectangleBorder(

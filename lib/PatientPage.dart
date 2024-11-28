@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-// Ensure the following imports are present
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'homeTab.dart'; // Ensure this file defines HomeTab
 import 'searchTab.dart';
 import 'patProfile.dart';
@@ -15,54 +15,90 @@ class PatientPage extends StatefulWidget {
 
 class _PatientPageState extends State<PatientPage> {
   int _selectedIndex = 0;
-  late List<Widget> _pages; // Use late modifier to defer initialization
-
+  List<Widget>? _pages; // Use nullable List until data is initialized
   final List<Map<String, dynamic>> appointments = [];
-  final String userName = "John"; // For example, this could be fetched dynamically
+  String userName = "";
+  String patientId = ""; // Add a variable to store the patient ID
+  final FlutterSecureStorage _storage = FlutterSecureStorage(); // Declare the storage instance
+
+
+  /// Fetch userName and patientId, then initialize the pages
+  @override
+  void initState() {
+    super.initState();
+    _getPatientId();
+    _getUserName();
+  }
+
+  Future<void> _getPatientId() async {
+    String? id = await _storage.read(key: 'patient_id');
+    debugPrint("Fetched patient ID from storage: $id");
+    setState(() {
+      patientId = id ?? "";
+      _pages = [
+        HomeTab(
+          userName: userName,
+          onAppointmentBooked: _onAppointmentBooked,
+          onAppointmentCanceled: _onAppointmentCanceled,
+          onPatientIdReceived: _onPatientIdReceived,
+        ),
+        const DiagnosisChat(),
+        const SearchMedicinePage(),
+        ScheduleScreen(patientId: patientId), // Pass patientId to ScheduleScreen
+        const PatProfile(),
+      ];
+    });
+  }
+
+
+
+
+
+  Future<void> _getUserName() async {
+    String? name = await _storage.read(key: 'patient_name');
+    setState(() {
+      userName = name ?? "Patient"; // Use default "Patient" if name is null
+    });
+  }
+
 
   void _onAppointmentBooked(Map<String, dynamic> newAppointment) {
     setState(() {
-      appointments.add(newAppointment); // Add new appointment
+      appointments.add(newAppointment);
     });
   }
 
   void _onAppointmentCanceled(Map<String, dynamic> appointment) {
     setState(() {
-      appointments.remove(appointment); // Remove the canceled appointment
+      appointments.remove(appointment);
     });
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _pages = [
-      HomeTab(
-        // Pass the userName here
-        userName: userName, // Pass the dynamic user name
-        onAppointmentBooked: _onAppointmentBooked, // Pass the booking callback
-        onAppointmentCanceled: _onAppointmentCanceled, // Pass the cancellation callback
-      ),
-      const DiagnosisChat(),
-      const SearchMedicinePage(),
-      ScheduleScreen(
-        appointments: appointments,
-        onAppointmentBooked: _onAppointmentBooked,
-        onAppointmentCanceled: _onAppointmentCanceled, // Pass the same callbacks
-      ),
-      const PatProfile(),
-    ];
+  void _onPatientIdReceived(String id) {
+    setState(() {
+      patientId = id;
+    });
   }
 
   void _onItemTapped(int index) {
     setState(() {
-      _selectedIndex = index; // Change selected index
+      _selectedIndex = index;
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    // Show a loading indicator until `_pages` is initialized
+    if (_pages == null) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Scaffold(
-      body: _pages[_selectedIndex], // Display selected page
+      body: _pages![_selectedIndex],
       bottomNavigationBar: Stack(
         alignment: Alignment.bottomCenter,
         children: [
@@ -113,7 +149,7 @@ class _PatientPageState extends State<PatientPage> {
             child: GestureDetector(
               onTap: () {
                 setState(() {
-                  _selectedIndex = 2; // Switch to Search screen when tapped
+                  _selectedIndex = 2; // Switch to Search screen
                 });
               },
               child: Container(

@@ -36,6 +36,7 @@ class MyApp extends StatelessWidget {
           theme: themeNotifier.currentTheme, // Apply the current theme
           home:  WelcomePage(),
           routes: {
+            "welcomePage":(context) => const WelcomePage(),
             "signup": (context) => const PatSignUpPage(),
             "login": (context) =>  PatLoginPage(),
             '/reset-password': (context) => ResetPasswordPage(token: 'some_token'),

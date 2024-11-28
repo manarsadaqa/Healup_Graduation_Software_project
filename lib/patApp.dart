@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'map_screen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'ScheduleScreen.dart';
 
 class PatApp extends StatefulWidget {
   final String name;
@@ -38,14 +39,39 @@ class PatApp extends StatefulWidget {
 class _PatAppState extends State<PatApp> {
   String? selectedDate;
   String? selectedTime;
+  DateTime currentMonth = DateTime.now();
   final Map<String, Set<String>> reservedTimesByDate = {};
 
-  // Generate time intervals (30-minute slots)
+
+  // Fetch the reserved time slots for the selected doctor and date
+  Future<void> fetchReservedTimes() async {
+    if (selectedDate == null) return;
+
+    final apiUrl = "http://localhost:5000/api/healup/appointments/doctor/${widget.doctorId}/available-slots/$selectedDate";
+    try {
+      final response = await http.get(Uri.parse(apiUrl));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final reservedTimes = data['reservedTimes'] as List;
+
+        setState(() {
+          reservedTimesByDate[selectedDate!] = Set.from(reservedTimes.map((e) => e.toString()));
+        });
+      } else {
+        throw Exception("Failed to load reserved times.");
+      }
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Error fetching reserved times.")),
+      );
+    }
+  }
+
+  // Generate time intervals (60-minute slots)
   List<String> generateTimeIntervals(String availability) {
     final parts = availability.split(' - ');
-    if (parts.length != 2) {
-      return [];
-    }
+    if (parts.length != 2) return [];
 
     DateTime start = _parseTime(parts[0].trim());
     DateTime end = _parseTime(parts[1].trim());
@@ -54,7 +80,7 @@ class _PatAppState extends State<PatApp> {
     DateTime current = start;
 
     while (current.isBefore(end)) {
-      DateTime next = current.add(const Duration(minutes: 30));  // 30-minute slots
+      DateTime next = current.add(const Duration(minutes: 60));
       intervals.add("${_formatTime(current)} - ${_formatTime(next)}");
       current = next;
     }
@@ -67,53 +93,58 @@ class _PatAppState extends State<PatApp> {
     int minute = int.parse(timeStr.split(":")[1].split(" ")[0].trim());
     String period = timeStr.split(" ")[1].trim().toUpperCase();
 
-    if (period == "PM" && hour < 12) {
-      hour += 12;
-    } else if (period == "AM" && hour == 12) {
-      hour = 0;
-    }
+    if (period == "PM" && hour < 12) hour += 12;
+    if (period == "AM" && hour == 12) hour = 0;
 
     return DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day, hour, minute);
   }
 
   String _formatTime(DateTime time) {
-    return DateFormat.jm().format(time);  // e.g., "10:00 AM"
+    return DateFormat.jm().format(time); // e.g., "10:00 AM"
   }
 
-  Future<void> bookAppointmentToBackend(String date, String time) async {
+  Future<void> bookAppointmentToBackend(String? date, String? time) async {
+    if (date == null || time == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please select a valid date and time.")),
+      );
+      return;
+    }
+
     final apiUrl = "http://localhost:5000/api/healup/appointments/book";
     try {
-      final day = date.split(' ')[0];
-      final formattedDate = "$day/${DateTime.now().month.toString().padLeft(2, '0')}";
-
-      final appointmentDateTime = "$formattedDate $time";
-
       final response = await http.post(
         Uri.parse(apiUrl),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "patient_id": widget.patientId,
           "doctor_id": widget.doctorId,
-          "app_date": appointmentDateTime,
+          "app_date": "$date $time",
         }),
       );
 
       if (response.statusCode == 201) {
-        final responseData = jsonDecode(response.body);
+        setState(() {
+          reservedTimesByDate[date] ??= {};
+          reservedTimesByDate[date]!.add(time);
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Appointment successfully booked!")),
+          const SnackBar(content: Text("Appointment successfully booked!")),
         );
       } else {
         final responseData = jsonDecode(response.body);
-        throw Exception(responseData["message"] ?? "Failed to book appointment.");
+        final message = responseData["message"] ?? "Failed to book appointment.";
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
       }
     } catch (error) {
-      print("Error booking appointment: $error");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: Unable to book appointment.")),
+        const SnackBar(content: Text("Wrong: Unable to book appointment.")),
       );
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -137,26 +168,12 @@ class _PatAppState extends State<PatApp> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Doctor Info Section
                   Row(
                     children: [
-                      Container(
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.09),
-                              spreadRadius: 2,
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: CircleAvatar(
-                          radius: 50,
-                          backgroundImage: AssetImage(widget.photo),
-                        ),
+                      CircleAvatar(
+                        radius: 50,
+                        backgroundImage: AssetImage(widget.photo),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -165,93 +182,108 @@ class _PatAppState extends State<PatApp> {
                           children: [
                             Text(
                               widget.name,
-                              style: const TextStyle(
-                                  fontSize: 24, fontWeight: FontWeight.bold),
+                              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                             ),
                             Text(
                               widget.specialization,
-                              style: const TextStyle(
-                                  fontSize: 18, color: Colors.grey),
+                              style: const TextStyle(fontSize: 18, color: Colors.grey),
                             ),
-                            Text(
-                              '${widget.yearsOfExperience} years Experience',
-                              style: const TextStyle(fontSize: 16),
-                            ),
-                            const Text(
-                              '2456 Patients',
-                              style: TextStyle(fontSize: 16),
-                            ),
-                            Text(
-                              '\$${widget.price}/hr',
-                              style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xff2f9a8f)),
-                            ),
+                            Text('${widget.yearsOfExperience} years Experience'),
+                            Text('\$${widget.price}/hr', style: const TextStyle(fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 20),
+
+                  // Month Navigation
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Icon(Icons.location_on,
-                          color: Colors.red, size: 30),
-                      const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  MapScreen(
-                                    address: widget.address,
-                                    location: LatLng(
-                                        31.9022, 35.2034), // Dummy coordinates
-                                  ),
-                            ),
-                          );
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back),
+                        onPressed: currentMonth.isAfter(DateTime.now())
+                            ? () {
+                          setState(() {
+                            currentMonth = DateTime(
+                              currentMonth.year,
+                              currentMonth.month - 1,
+                            );
+                          });
+                        }
+                            : null,
+                      ),
+                      Text(
+                        DateFormat('MMMM yyyy').format(currentMonth),
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.arrow_forward),
+                        onPressed: () {
+                          setState(() {
+                            currentMonth = DateTime(
+                              currentMonth.year,
+                              currentMonth.month + 1,
+                            );
+                          });
                         },
-                        child: Text(
-                          widget.address,
-                          style: const TextStyle(
-                              fontSize: 15,
-                              color: Colors.blue,
-                              fontWeight: FontWeight.bold),
-                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Schedules',
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                  ),
                   const SizedBox(height: 10),
-                  SizedBox(
-                    height: 100,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _daysInMonth(),
-                      itemBuilder: (context, index) {
-                        final date = DateTime(DateTime.now().year,
-                            DateTime.now().month, index + 1);
-                        final dayName = DateFormat('EEE').format(date);
-                        final dayNumber = DateFormat('d').format(date);
 
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: _buildDateButton(dayName, dayNumber),
-                        );
-                      },
+                  // Days of the Month
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 7,
+                      mainAxisSpacing: 4,
+                      crossAxisSpacing: 4,
+                      childAspectRatio: 1.5, // Adjust for oval shape
                     ),
+                    itemCount: _daysInMonth(currentMonth),
+                    itemBuilder: (context, index) {
+                      final day = index + 1;
+                      final date = DateTime(currentMonth.year, currentMonth.month, day);
+                      final isPast = date.isBefore(DateTime.now());
+                      final isSelected = selectedDate == DateFormat('yyyy-MM-dd').format(date);
+
+                      return GestureDetector(
+                        onTap: !isPast
+                            ? () {
+                          setState(() {
+                            selectedDate = DateFormat('yyyy-MM-dd').format(date);
+                          });
+                        }
+                            : null,
+                        child: Container(
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: isSelected ? const Color(0xff6be4d7) : Colors.white,
+                            borderRadius: BorderRadius.circular(25), // Oval shape
+                            border: Border.all(
+                              color: isPast ? Colors.grey : Colors.black,
+                              width: isSelected ? 2 : 1,
+                            ),
+                          ),
+                          child: Text(
+                            '$day',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: isPast ? Colors.grey : Colors.black,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
+
                   const SizedBox(height: 20),
-                  const Text(
-                    'Time',
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                  ),
+
+                  // Time Slots Section
+                  Text('Time Slots', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 10),
                   Column(
                     children: generateTimeIntervals(widget.availability)
@@ -260,22 +292,37 @@ class _PatAppState extends State<PatApp> {
                   ),
 
                   const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: selectedDate != null && selectedTime != null
-                        ? () {
-                      _bookAppointment(context);
-                    }
-                        : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xff6be4d7),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30)),
-                    ),
-                    child: const Center(
-                      child: Text(
-                        'Book Now',
-                        style: TextStyle(fontSize: 18, color: Colors.white),
+
+                  // Book Now Button
+                  // Inside the build method of _PatAppState
+                  Center(
+                    child: SizedBox(
+                      width: MediaQuery.of(context).size.width * 0.8, // 80% of screen width
+                      child: ElevatedButton(
+                        onPressed: selectedDate != null && selectedTime != null
+                            ? () => bookAppointmentToBackend(selectedDate, selectedTime)
+                            : () {
+                          // Display Snackbar if date or time is not selected
+                          final snackBar = SnackBar(
+                            content: Text(
+                              selectedDate == null
+                                  ? 'Please select a date.'
+                                  : 'Please select a time.',
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                            backgroundColor: Colors.redAccent,
+                          );
+                          ScaffoldMessenger.of(context).showSnackBar(snackBar);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xff6be4d7),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                        ),
+                        child: const Text(
+                          'Book Now',
+                          style: TextStyle(fontSize: 18, color: Colors.white),
+                        ),
                       ),
                     ),
                   ),
@@ -288,96 +335,63 @@ class _PatAppState extends State<PatApp> {
     );
   }
 
-  Widget _buildDateButton(String dayName, String dayNumber) {
-    final date = "$dayNumber"; // Combine day name and number for date representation
-    final isSelected = selectedDate == date;
-
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          selectedDate = date;
-        });
-      },
-      child: Container(
-        width: 60,
-        height: 90,
-        decoration: BoxDecoration(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(25),
-          border: Border.all(
-            color: isSelected ? const Color(0xff6be4d7) : Colors.grey,
-            width: 4,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              dayName,
-              style: TextStyle(
-                fontSize: 18,
-                color: isSelected ? const Color(0xff6be4d7) : Colors.black,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              dayNumber,
-              style: TextStyle(
-                fontSize: 18,
-                color: isSelected ? const Color(0xff6be4d7) : Colors.black,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  int _daysInMonth(DateTime date) {
+    return DateTime(date.year, date.month + 1, 0).day;
   }
 
   Widget _buildTimeButton(String time) {
+    final now = DateTime.now();
+    final isExpiredToday = selectedDate == DateFormat('yyyy-MM-dd').format(now) &&
+        _parseTime(time.split(' - ')[0]).isBefore(now);
+
+    final isSelected = selectedTime == time; // Check if this time is selected
     final isReserved = reservedTimesByDate[selectedDate]?.contains(time) ?? false;
-    final isSelected = selectedTime == time && !isReserved;
 
     return GestureDetector(
-      onTap: !isReserved
+      onTap: !isExpiredToday && !isReserved
           ? () {
         setState(() {
-          selectedTime = time; // Set the selected time when tapped
+          selectedTime = time; // Set the selected time
         });
       }
-          : null, // Don't allow selection if the time is reserved
+          : null,
       child: Container(
+        alignment: Alignment.center, // Center time text
         margin: const EdgeInsets.symmetric(vertical: 4),
         decoration: BoxDecoration(
-          color: isReserved
-              ? Colors.grey // Reserved times are greyed out
-              : (isSelected ? const Color(0xff6be4d7) : Colors.transparent), // Selected times are highlighted
-          borderRadius: BorderRadius.circular(25),
-          border: Border.all(color: isReserved ? Colors.grey : Colors.grey), // Border color
+          color: isExpiredToday
+              ? Colors.grey // Grey for expired time slots
+              : (isReserved
+              ? Color(0xff6BA3BE) // Red for reserved times
+              : (isSelected
+              ? const Color(0xff6be4d7) // Highlight color for selected time
+              : Colors.white)), // Default white for unselected time
+          borderRadius: BorderRadius.circular(25), // Oval shape
+          border: Border.all(
+            color: isReserved ? Color(0xff6be4d7) : (isSelected ? Colors.black : Colors.grey), // Black edges for selected time
+            width: isSelected ? 2 : 1, // Thicker edges for selected time
+          ),
         ),
         padding: const EdgeInsets.all(12),
-        child: Center(
-          child: Text(
-            time,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: isReserved || isSelected ? FontWeight.bold : FontWeight.w400,
-              color: isReserved ? Colors.black45 : Colors.black, // Text color based on state
-            ),
+        child: Text(
+          time,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, // Bold for selected time
+            color: isExpiredToday
+                ? Colors.black45 // Greyed out for expired times
+                : isReserved
+                ? Colors.white // White for reserved times
+                : Colors.black, // Black for all other states
           ),
         ),
       ),
     );
   }
 
-  int _daysInMonth() {
-    return DateTime(DateTime.now().year, DateTime.now().month + 1, 0).day;
-  }
 
-  void _bookAppointment(BuildContext context) {
-    if (selectedDate != null && selectedTime != null) {
-      bookAppointmentToBackend(selectedDate!, selectedTime!);
-    }
-  }
+
+
+
+
 }

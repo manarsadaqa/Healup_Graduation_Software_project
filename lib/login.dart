@@ -203,6 +203,7 @@ class _PatLoginPageState extends State<PatLoginPage> {
               ),
             ),
           ),
+
           Container(
             color: Colors.white.withOpacity(0.1),
           ),
@@ -211,6 +212,13 @@ class _PatLoginPageState extends State<PatLoginPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center, // Center the login form vertically
                 children: [
+                  Align(
+                    alignment: Alignment.topLeft,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Color(0xff2f9a8f), size: 30),
+                      onPressed: () => Navigator.of(context).pushReplacementNamed("welcomePage"),
+                    ),
+                  ),
                   const SizedBox(height: 40), // Add space above the form
                   const Center(
                     child: CircleAvatar(
