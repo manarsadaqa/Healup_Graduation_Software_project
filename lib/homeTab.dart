@@ -7,6 +7,7 @@ import 'dart:convert'; // For parsing the JSON response
 import 'AllDoctorsPage.dart';
 import 'patApp.dart';
 import 'login.dart';
+import 'chatBot.dart';
 
 class HomeTab extends StatefulWidget {
   final Function(Map<String, dynamic>) onAppointmentBooked;
@@ -280,6 +281,8 @@ class _HomeTabState extends State<HomeTab> {
                     );
                   },
                 ),
+                // Add this inside your HomeTab's build method, perhaps after the Doctor Speciality section
+                const SizedBox(height: 20), // Add spacing
 
               ],
             ),

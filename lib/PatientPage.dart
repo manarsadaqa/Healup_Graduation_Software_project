@@ -3,8 +3,9 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'homeTab.dart'; // Ensure this file defines HomeTab
 import 'searchTab.dart';
 import 'patProfile.dart';
-import 'DiagnosisChat.dart';
+import 'chatBot.dart';
 import 'ScheduleScreen.dart';
+
 
 class PatientPage extends StatefulWidget {
   const PatientPage({super.key});
@@ -42,7 +43,7 @@ class _PatientPageState extends State<PatientPage> {
           onAppointmentCanceled: _onAppointmentCanceled,
           onPatientIdReceived: _onPatientIdReceived,
         ),
-        const DiagnosisChat(),
+        ChatBot(patientId: patientId),
         const SearchMedicinePage(),
         ScheduleScreen(patientId: patientId), // Pass patientId to ScheduleScreen
         const PatProfile(),

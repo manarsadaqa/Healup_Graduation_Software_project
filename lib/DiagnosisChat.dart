@@ -45,7 +45,7 @@ class _DiagnosisChatState extends State<DiagnosisChat> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+      return Scaffold(
       appBar: AppBar(
         title: const Text('AI Diagnosis Chat'),
         backgroundColor: const Color(0xff6be4d7),
