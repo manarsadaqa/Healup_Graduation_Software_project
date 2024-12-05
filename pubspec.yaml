@@ -33,9 +33,14 @@ dependencies:
   intl_phone_field: ^3.0.1  # Add the latest version
   font_awesome_flutter: ^10.2.0 # Check for the latest version
   http: ^1.0.5
-  flutter_secure_storage: ^5.0.2
-  firebase_messaging: ^14.1.0
-  uuid: ^3.0.7
+  firebase_core: ^2.32.0
+  permission_handler: ^10.2.0 # Make sure you're using the latest stable version
+  image_picker: ^0.8.7+3
+  in_app_review: ^2.0.3
+  url_launcher: ^6.0.12
+  flutter_secure_storage: ^6.0.0   # Make sure the version is correct (latest stable)
+  uuid: ^3.0.4  # Make sure the version is correct (latest stable)
+  file_picker: ^5.2.0  # Ensure you're using the latest version
 
 
 
@@ -52,14 +57,9 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   provider: ^6.0.0
-  image_picker: ^1.1.2
-  url_launcher: ^6.0.20 # Check for the latest version
   google_maps_flutter: ^2.0.10 # Or the latest version
   intl: ^0.20.0  # Add this line
-  awesome_dialog: ^3.2.1
   uni_links: ^0.5.1
-  flutter_secure_storage: ^5.0.2  # Ensure you're using a compatible version
-
 
 
 
