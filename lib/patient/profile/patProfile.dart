@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';  // For encoding image to base64
 import 'ThemeNotifier.dart';
 import 'package:in_app_review/in_app_review.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:file_picker/file_picker.dart'; // Import file_picker
 
 
@@ -21,6 +21,7 @@ class PatProfile extends StatefulWidget {
 }
 
 class _PatProfileState extends State<PatProfile> {
+  final _storage = FlutterSecureStorage();
   File? _profileImage; // Store the selected profile image
   ImageProvider? _profileImageProvider; // Store the selected image as ImageProvider (for web)
   Map<String, dynamic>? _patientData; // Store patient data
@@ -313,9 +314,11 @@ class _PatProfileState extends State<PatProfile> {
                 leading: const Icon(Icons.exit_to_app),
                 title: const Text("Log Out"),
                 onTap: () async {
-                  Navigator.of(context).pushNamedAndRemoveUntil(
-                      "login", (route) => false); // Perform logout action here
-                  print("User logged out");
+                    // Clear the secure storage
+                    await _storage.deleteAll();
+                    // Navigate back to login screen
+                    Navigator.of(context).pushReplacementNamed('login');
+
                 },
               ),
             ],

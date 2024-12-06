@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert'; // For parsing the JSON response
 import 'package:awesome_dialog/awesome_dialog.dart';
-import 'PatientPage.dart';
+import '../PatientPage.dart';
 
 
 

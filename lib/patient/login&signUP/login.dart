@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:awesome_dialog/awesome_dialog.dart';
-import 'PatientPage.dart';
+import '../PatientPage.dart';
 import 'ResetPasswordPage.dart';
 import 'signUp.dart';
 import 'package:uni_links/uni_links.dart';

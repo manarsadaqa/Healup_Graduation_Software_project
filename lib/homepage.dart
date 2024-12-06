@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'login.dart'; // Import the LoginSignupPage
-
+import 'patient/login&signUP/login.dart'; // Import the LoginSignupPage
+import 'Doctors/DoctorLoginPage.dart';
 
 class WelcomePage extends StatefulWidget {
   const WelcomePage({super.key});
@@ -137,10 +137,11 @@ class _WelcomePageState extends State<WelcomePage>
           if (role == 'Patient') {
             Navigator.of(context).pushReplacementNamed("login");
 
-          } else {
-            // Display a welcoming message for other roles
-            print('Welcome aboard, $role!');
-          }
+          }  else if (role == 'Doctor') {
+            Navigator.of(context).push(MaterialPageRoute(
+              builder: (context) => DoctorLoginPage(), // Navigates to DoctorLoginPage
+            ));}
+
         },
         icon: Icon(icon, color: Colors.white),
         label: Text(

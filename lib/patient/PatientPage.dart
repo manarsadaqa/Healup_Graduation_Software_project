@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'homeTab.dart'; // Ensure this file defines HomeTab
-import 'searchTab.dart';
-import 'patProfile.dart';
-import 'chatBot.dart';
-import 'ScheduleScreen.dart';
+import 'medication/searchTab.dart';
+import 'profile/patProfile.dart';
+import 'chatBot/chatBot.dart';
+import 'Appointement/ScheduleScreen.dart';
 
 
 class PatientPage extends StatefulWidget {

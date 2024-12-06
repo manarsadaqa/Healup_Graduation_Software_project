@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
-import 'PatientPage.dart';
+import '../PatientPage.dart';
 import 'VerifyAccountScreen.dart';
 
 class PatSignUpPage extends StatefulWidget {

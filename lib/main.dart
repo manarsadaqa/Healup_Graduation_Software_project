@@ -1,12 +1,12 @@
-import 'package:first/signUp.dart';
+import 'package:first/patient/login&signUP/signUp.dart';
 import 'package:flutter/material.dart';
-import 'PatientPage.dart';
+import 'patient/PatientPage.dart';
 import 'package:provider/provider.dart';
-import 'ThemeNotifier.dart';
+import 'patient/profile/ThemeNotifier.dart';
 import 'homepage.dart';
-import 'login.dart'; // Import the ThemeNotifier class
-import 'DiagnosisChat.dart';
-import 'ResetPasswordPage.dart';
+import 'patient/login&signUP/login.dart'; // Import the ThemeNotifier class
+import 'patient/login&signUP/ResetPasswordPage.dart';
+import 'Doctors/DoctorLoginPage.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,7 +41,8 @@ class MyApp extends StatelessWidget {
             "login": (context) =>  PatLoginPage(),
             '/reset-password': (context) => ResetPasswordPage(token: 'some_token'),
             "homepage": (context) => const PatientPage(),
-            "WelcomePage": (context) => const WelcomePage()
+            "WelcomePage": (context) => const WelcomePage(),
+            "Doctor_login":(context) =>  DoctorLoginPage()
           }, // Your home page
         );
       },

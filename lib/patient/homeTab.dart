@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart'; // Import the package
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'patApp.dart'; // Import the PatApp page
+import 'Appointement/patApp.dart'; // Import the PatApp page
 import 'package:http/http.dart' as http;
 import 'dart:convert'; // For parsing the JSON response
-import 'AllDoctorsPage.dart';
-import 'patApp.dart';
-import 'login.dart';
-import 'chatBot.dart';
+import 'Appointement/AllDoctorsPage.dart';
+import 'Appointement/patApp.dart';
+import 'login&signUP/login.dart';
+import 'chatBot/chatBot.dart';
 
 class HomeTab extends StatefulWidget {
   final Function(Map<String, dynamic>) onAppointmentBooked;
