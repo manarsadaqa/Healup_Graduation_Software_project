@@ -1,21 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'cart.dart';
 import 'MedicineDetailPage.dart';
+import 'medicine.dart';  // Import the shared Medicine model
 
-class Medicine {
-  final String name;
-  final String image;
-  final String description;
-  final double price;
-  final String category;
+// Medicine model class
 
-  Medicine({
-    required this.name,
-    required this.image,
-    required this.description,
-    required this.price,
-    required this.category,
-  });
-}
 
 class SearchMedicinePage extends StatefulWidget {
   const SearchMedicinePage({super.key});
@@ -26,109 +17,61 @@ class SearchMedicinePage extends StatefulWidget {
 
 class _MedicinePageState extends State<SearchMedicinePage> {
   String _searchText = "";
-  String _selectedCategory = "";
+  String _selectedCategory = "All";
+  List<Medicine> medicines = [];
+  bool _isLoading = false;
 
-  List<String> categories = [
-    "All",
-    "Pain Relief",
-    "Cold & Flu",
-    "Allergy",
-    "Vitamins",
-    "Digestive Health",
-  ];
+  static List<Map<String, dynamic>> cart = [];
 
-  List<Medicine> medicines = [
-    Medicine(
-      name: "Paracetamol",
-      image: "images/paracetamol.jpg",
-      description: "Pain relief and fever reducer",
-      price: 2.50,
-      category: "Pain Relief",
-    ),
-    Medicine(
-      name: "Ibuprofen",
-      image: "images/Ibuprofen.jpg",
-      description: "Anti-inflammatory medication",
-      price: 5.00,
-      category: "Pain Relief",
-    ),
-    Medicine(
-      name: "Aspirin",
-      image: "images/Aspirin.jpg",
-      description: "Blood thinner and pain reliever",
-      price: 3.00,
-      category: "Pain Relief",
-    ),
-    Medicine(
-      name: "Vitamin C",
-      image: "images/vitaminC.jpg",
-      description: "Boosts immune system",
-      price: 10.00,
-      category: "Vitamins",
-    ),
-    Medicine(
-      name: "Vitamin D",
-      image: "images/VitaminD.jpg",
-      description: "Boosts immune system",
-      price: 10.00,
-      category: "Vitamins",
-    ),
-    Medicine(
-      name: "Rem Vit",
-      image: "images/Digestive Health.jpg",
-      description: "Relieves heartburn",
-      price: 4.50,
-      category: "Digestive Health",
-    ),
-    Medicine(
-      name: "Ginger Root",
-      image: "images/Digestive Health2.jpg",
-      description: "Relieves heartburn",
-      price: 4.50,
-      category: "Digestive Health",
-    ),
-    Medicine(
-      name: "Day&Night Cold&Flu",
-      image: "images/Cold & Flu.jpg",
-      description: "Pain relief and fever reducer",
-      price: 2.50,
-      category: "Cold & Flu",
-    ),
-    Medicine(
-      name: "Codral",
-      image: "images/Cold & Flu2.jpg",
-      description: "Pain relief and fever reducer",
-      price: 2.50,
-      category: "Cold & Flu",
-    ),
-    Medicine(
-      name: "Paracetamol",
-      image: "images/Allergy.jpg",
-      description: "Pain relief and fever reducer",
-      price: 2.50,
-      category: "Allergy",
-    ),
-    Medicine(
-      name: "Allegra",
-      image: "images/Allergy2.jpg",
-      description: "Pain relief and fever reducer",
-      price: 2.50,
-      category: "Allergy",
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _fetchOTCMedications();
+  }
+
+  Future<void> _fetchOTCMedications() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final response = await http.get(
+        Uri.parse('http://localhost:5000/api/healup/medication/otcmedication'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          medicines = (data['medications'] as List)
+              .map((medicine) => Medicine.fromJson(medicine))
+              .toList();
+        });
+      } else {
+        throw Exception('Failed to load medications');
+      }
+    } catch (error) {
+      print("Error fetching OTC medications: $error");
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   List<Medicine> _filterMedicines() {
     List<Medicine> filteredList = medicines;
 
     if (_searchText.isNotEmpty) {
       filteredList = filteredList.where((medicine) {
-        return medicine.name.toLowerCase().contains(_searchText.toLowerCase());
+        return medicine.medication_name
+            .toLowerCase()
+            .contains(_searchText.toLowerCase());
       }).toList();
     }
 
     if (_selectedCategory.isNotEmpty && _selectedCategory != "All") {
       filteredList = filteredList.where((medicine) {
-        return medicine.category == _selectedCategory;
+        return medicine.type == _selectedCategory;
       }).toList();
     }
 
@@ -139,27 +82,62 @@ class _MedicinePageState extends State<SearchMedicinePage> {
   Widget build(BuildContext context) {
     List<Medicine> filteredMedicines = _filterMedicines();
 
+    // Provided types list
+    List<String> types = [
+      "All",
+      "ALLERGY & CONGESTION",
+      "ANTACIDS & ACID REDUCERS",
+      "ANTIBACTERIALS, TOPICAL",
+      "COUGH & COLD",
+      "DIABETES - INSULINS",
+      "DIABETES - SUPPLIES",
+      "EYE CARE",
+      "GAS RELIEVERS, LAXATIVES & STOOL SOFTENERS",
+      "ANTIDIARRHEALS",
+      "ANTIEMETIC",
+      "ANTIFUNGALS, TOPICAL",
+      "ANTIFUNGALS, VAGINAL",
+      "ANTI-ITCH LOTIONS & CREAMS",
+      "CONTRACEPTIVES",
+      "CONTRACEPTIVES - EMERGENCY",
+      "MEDICAL SUPPLIES",
+      "OVERACTIVE BLADDER",
+      "PAIN & INFLAMMATION",
+      "TOPICAL, MISCELLANEOUS",
+      "VITAMINS/MINERALS",
+      "MISCELLANEOUS"
+    ];
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Search Medicine"),
         backgroundColor: const Color(0xff6be4d7),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.shopping_cart),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => CartPage(cart: cart),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: Stack(
         children: [
-          // Background image
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('images/pat.jpg'), // Your background image
-                fit: BoxFit.cover, // Cover the entire screen
+                image: AssetImage('images/pat.jpg'),
+                fit: BoxFit.cover,
               ),
             ),
           ),
-
-          // Main content over the background
           Column(
             children: [
-              // Search bar with camera icon
               Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: TextField(
@@ -174,7 +152,6 @@ class _MedicinePageState extends State<SearchMedicinePage> {
                     suffixIcon: IconButton(
                       icon: const Icon(Icons.camera_alt),
                       onPressed: () {
-                        // Handle camera search functionality here
                         print('Camera search clicked!');
                       },
                     ),
@@ -184,59 +161,68 @@ class _MedicinePageState extends State<SearchMedicinePage> {
                   ),
                 ),
               ),
-
-              // Categories section (horizontal scrollable)
-              SizedBox(
-                height: 50,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: categories.length,
-                  itemBuilder: (context, index) {
-                    String category = categories[index];
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: ChoiceChip(
-                        label: Text(category),
-                        selected: _selectedCategory == category,
-                        onSelected: (selected) {
-                          setState(() {
-                            _selectedCategory = selected ? category : "";
-                          });
-                        },
-                        backgroundColor: const Color(0xff0C969C),
-                        selectedColor: Color(0xff6be4d7),
-                        labelStyle: TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: types.map((type) {
+                    bool isSelected = type == _selectedCategory;
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selectedCategory = type;
+                        });
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.all(8.0),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 10.0, horizontal: 15.0),
+                        decoration: BoxDecoration(
+                          color: isSelected ? Colors.white : const Color(0xff2f9a8f),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                              color: const Color(0xff2f9a8f), width: 2),
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                              20), // Set border radius here
+                        child: Text(
+                          type,
+                          style: TextStyle(
+                            color: isSelected ? Colors.black : Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     );
-                  },
+                  }).toList(),
                 ),
               ),
-
-              // Display list of medicines
-              Expanded(
+              _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : Expanded(
                 child: ListView.builder(
                   itemCount: filteredMedicines.length,
                   itemBuilder: (context, index) {
-                    final medicine = filteredMedicines[index];
+                    Medicine medicine = filteredMedicines[index];
                     return Card(
                       margin: const EdgeInsets.all(8.0),
                       child: ListTile(
-                        leading: Image.asset(
+                        leading: medicine.image.isNotEmpty
+                            ? Image.network(
                           medicine.image,
+                          width: 50,
+                          height: 50,
+                          fit: BoxFit.cover,
+                        )
+                            : Image.asset(
+                          'images/default_medicine.png',
                           width: 50,
                           height: 50,
                         ),
                         title: Text(
-                          medicine.name,
+                          medicine.medication_name,
                           style: const TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold),
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -253,29 +239,47 @@ class _MedicinePageState extends State<SearchMedicinePage> {
                         ),
                         trailing: ElevatedButton(
                           onPressed: () {
-                            print('Purchased ${medicine.name}');
+                            setState(() {
+                              cart.add({
+                                'name': medicine.medication_name,
+                                'image': medicine.image,
+                                'price': medicine.price,
+                                'quantity': 1,
+                              });
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text("${medicine.medication_name} added to cart."),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xff0C969C),
                           ),
                           child: const Text(
-                            "Buy",
+                            "Add",
                             style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold),
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  MedicineDetailPage(medicine: medicine),
+                              builder: (context) => MedicineDetailPage(
+                                medicine: medicine, // Pass the entire Medicine object here
+                                cart: cart, // Pass the shared cart
+                              ),
                             ),
                           );
                         },
+
                       ),
+
                     );
                   },
                 ),
