@@ -3,46 +3,56 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:in_app_review/in_app_review.dart';
+import 'package:first/patient/profile/ThemeNotifier.dart';
+import 'package:provider/provider.dart';
 
 class DoctorProfilePage extends StatefulWidget {
   @override
   _DoctorProfilePageState createState() => _DoctorProfilePageState();
 }
 
-class _DoctorProfilePageState extends State<DoctorProfilePage> {
+class _DoctorProfilePageState extends State<DoctorProfilePage>
+    with SingleTickerProviderStateMixin {
   final _storage = FlutterSecureStorage();
-  Map<String, dynamic>? doctorData; // Store doctor data
-  bool isLoading = true; // Loading state
+  Map<String, dynamic>? doctorData;
+  bool isLoading = true;
   final _formKey = GlobalKey<FormState>();
-  bool _notificationsEnabled = true; // Notification toggle state
-  bool _isDarkMode = false; // Dark mode toggle state
+  bool _notificationsEnabled = true;
+  bool _isDarkMode = false;
 
-  // Controllers for the form fields
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _usernameController = TextEditingController();
-  final TextEditingController _specializationController = TextEditingController();
+  final TextEditingController _specializationController =
+  TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _hospitalController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
-  final TextEditingController _yearExperienceController = TextEditingController();
+  final TextEditingController _yearExperienceController =
+  TextEditingController();
+  Color? sectionBorderColor = Colors.white;
+  Color _borderColor = Colors.white;
+
+  late AnimationController _animationController;
 
   @override
   void initState() {
     super.initState();
-    _fetchDoctorDetails(); // Fetch details on page load
+    _animationController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 800),
+    );
+    _fetchDoctorDetails();
   }
 
   Future<void> _fetchDoctorDetails() async {
     try {
-      // Retrieve the doctor ID from secure storage
       String? doctorId = await _storage.read(key: 'doctor_id');
       if (doctorId == null) {
         throw Exception("Doctor ID not found in storage.");
       }
 
-      // Make a GET request to fetch doctor data
       final response = await http.get(
         Uri.parse('http://localhost:5000/api/healup/doctors/doctor/$doctorId'),
         headers: {'Content-Type': 'application/json'},
@@ -50,10 +60,10 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
 
       if (response.statusCode == 200) {
         setState(() {
-          doctorData = json.decode(response.body); // Parse doctor data
+          doctorData = json.decode(response.body);
           isLoading = false;
         });
-        _populateFields(); // Populate the form fields with the current doctor data
+        _populateFields();
       } else {
         throw Exception("Failed to load doctor details.");
       }
@@ -62,20 +72,6 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
         isLoading = false;
       });
       _showErrorDialog("An error occurred while loading doctor details.");
-    }
-  }
-
-  void _populateFields() {
-    if (doctorData != null) {
-      _nameController.text = doctorData!['name'] ?? '';
-      _usernameController.text = doctorData!['username'] ?? '';
-      _specializationController.text = doctorData!['specialization'] ?? '';
-      _phoneController.text = doctorData!['phone'] ?? '';
-      _emailController.text = doctorData!['email'] ?? '';
-      _addressController.text = doctorData!['address'] ?? '';
-      _hospitalController.text = doctorData!['hospital'] ?? '';
-      _priceController.text = doctorData!['pricePerHour'].toString() ?? '';
-      _yearExperienceController.text = doctorData!['yearExperience'].toString() ?? '';
     }
   }
 
@@ -114,13 +110,6 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
     }
   }
 
-  Future<void> _logout() async {
-    // Clear the secure storage
-    await _storage.deleteAll();
-    // Navigate back to login screen
-    Navigator.of(context).pushReplacementNamed('Doctor_login');
-  }
-
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
@@ -153,12 +142,217 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
     );
   }
 
-  void _showSettingsMenu() {
+
+
+  // Function to show confirmation dialog for turning off notifications
+  void _showTurnOffNotificationsDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text("Settings"),
+          title: const Text("Turn off Notifications"),
+          content: const Text("Are you sure you want to turn off notifications?"),
+          actions: <Widget>[
+            TextButton(
+              child: const Text("Cancel"),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text("Yes"),
+              onPressed: () {
+                setState(() {
+                  _notificationsEnabled = false;
+                });
+                Navigator.of(context).pop(); // Close the dialog
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+
+  void _populateFields() {
+    if (doctorData != null) {
+      _nameController.text = doctorData!['name'] ?? '';
+      _usernameController.text = doctorData!['username'] ?? '';
+      _specializationController.text = doctorData!['specialization'] ?? '';
+      _phoneController.text = doctorData!['phone'] ?? '';
+      _emailController.text = doctorData!['email'] ?? '';
+      _addressController.text = doctorData!['address'] ?? '';
+      _hospitalController.text = doctorData!['hospital'] ?? '';
+      _priceController.text = doctorData!['pricePerHour'].toString() ?? '';
+      _yearExperienceController.text =
+          doctorData!['yearExperience'].toString() ?? '';
+    }
+  }
+
+  Widget _buildSectionDivider({Color color = Colors.white}) {
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: 10),
+      height: 2,
+      color: color,
+    );
+  }
+
+  Widget _buildTextField(String label, TextEditingController controller, {bool isEmail = false}) {
+    return TextFormField(
+      controller: controller,
+      readOnly: isEmail,  // Set the email field as read-only
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(
+          color: Colors.grey[900],
+          fontWeight: FontWeight.bold,
+          fontSize: 18,
+        ), // Larger font size for label
+        floatingLabelBehavior: FloatingLabelBehavior.auto, // Ensures the label floats above the input field
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15), // Increased border thickness
+          borderSide: BorderSide(color: _borderColor, width: 3), // Default border color
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide(color: _borderColor, width: 3), // Default border color
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide(color: Color(0xff2f9a8f), width: 3), // Border color when focused (clicked)
+        ),
+        fillColor: Colors.white.withOpacity(0.8), // White with 50% opacity
+        filled: true,
+      ),
+      style: TextStyle(
+        color: Color(0xff2f9a8f), // Text color
+        fontWeight: FontWeight.bold,
+        fontSize: 18, // Larger font size for input text
+      ),
+    );
+  }
+
+
+
+
+
+  @override
+  Widget build(BuildContext context) {
+    final themeNotifier = Provider.of<ThemeNotifier>(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          "Doctor Profile",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: const Color(0xff6be4d7),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.settings, color: Colors.white),
+            onPressed: () => _showSettingsMenu(context, themeNotifier),
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('images/back.jpg'),
+                fit: BoxFit.cover,
+              ),
+            ),
+            child: Container(
+              color: Colors.black.withOpacity(0.5),
+            ),
+          ),
+          isLoading
+              ? Center(child: CircularProgressIndicator())
+              : SingleChildScrollView(
+            physics: BouncingScrollPhysics(),
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: CircleAvatar(
+                        radius: 60,
+                        backgroundImage: doctorData!['photo'] != null
+                            ? NetworkImage(doctorData!['photo'])
+                            : AssetImage('assets/doctor.jpg')
+                        as ImageProvider,
+                      ),
+                    ),
+                    SizedBox(height: 10),
+                    _buildSectionDivider(),
+                    SizedBox(height: 20),
+                    ..._buildFields(),
+                    SizedBox(height: 20),
+                    Center(
+                      child: ElevatedButton(
+                        onPressed: _updateDoctorProfile,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xff2f9a8f),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 40, vertical: 15),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        child: const Text(
+                          'Update Profile',
+                          style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildFields() {
+    return [
+      _buildTextField("Name", _nameController),
+      SizedBox(height: 10),
+      _buildTextField("Username", _usernameController),
+      SizedBox(height: 10),
+      _buildTextField("Specialization", _specializationController),
+      SizedBox(height: 10),
+      _buildTextField("Phone", _phoneController),
+      SizedBox(height: 10),
+      _buildTextField("Email", _emailController, isEmail: true),  // Make email read-only
+      SizedBox(height: 10),
+      _buildTextField("Address", _addressController),
+      SizedBox(height: 10),
+      _buildTextField("Hospital", _hospitalController),
+      SizedBox(height: 10),
+      _buildTextField("Price per hour", _priceController),
+      SizedBox(height: 10),
+      _buildTextField("Years of Experience", _yearExperienceController),
+      SizedBox(height: 20),
+    ];
+  }
+
+
+  void _showSettingsMenu(BuildContext context, ThemeNotifier themeNotifier) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Settings"),
           content: Container(
             width: 300, // Set the desired width for the dialog
             child: Column(
@@ -166,34 +360,38 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
               children: [
                 ListTile(
                   leading: Icon(
-                    _isDarkMode ? Icons.nightlight_round : Icons.wb_sunny,
-                    color: _isDarkMode ? Colors.white : Colors.black,
+                    themeNotifier.isDarkMode
+                        ? Icons.nightlight_round
+                        : Icons.wb_sunny,
+                    color: themeNotifier.isDarkMode ? Colors.white : Colors.black,
                   ),
-                  title: Text("Dark Mode"),
+                  title: const Text("Dark Mode"),
                   trailing: Switch(
-                    value: _isDarkMode,
+                    value: themeNotifier.isDarkMode,
                     onChanged: (value) {
-                      setState(() {
-                        _isDarkMode = value;
-                      });
+                      themeNotifier.toggleTheme();
                     },
                   ),
                 ),
                 ListTile(
-                  leading: Icon(Icons.notifications),
-                  title: Text("Notifications"),
+                  leading: const Icon(Icons.notifications),
+                  title: const Text("Notifications"),
                   trailing: Switch(
                     value: _notificationsEnabled,
                     onChanged: (value) {
-                      setState(() {
-                        _notificationsEnabled = value;
-                      });
+                      if (_notificationsEnabled && !value) {
+                        _showTurnOffNotificationsDialog(context);
+                      } else {
+                        setState(() {
+                          _notificationsEnabled = value;
+                        });
+                      }
                     },
                   ),
                 ),
                 ListTile(
-                  leading: Icon(Icons.info),
-                  title: Text("About"),
+                  leading: const Icon(Icons.info),
+                  title: const Text("About"),
                   onTap: () {
                     showAboutDialog(
                       context: context,
@@ -204,32 +402,36 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
                   },
                 ),
                 ListTile(
-                  leading: Icon(Icons.star),
-                  title: Text("Rate the App"),
+                  leading: const Icon(Icons.star),
+                  title: const Text("Rate the App"),
                   onTap: () async {
                     final inAppReview = InAppReview.instance;
                     if (await inAppReview.isAvailable()) {
                       inAppReview.requestReview();
                     } else {
+                      // You can show a message or redirect the user to the store
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("You cannot rate the app right now.")),
+                        const SnackBar(content: Text("You cannot rate the app right now.")),
                       );
                     }
                   },
                 ),
                 ListTile(
-                  leading: Icon(Icons.lock),
-                  title: Text("Privacy Policy"),
+                  leading: const Icon(Icons.lock),
+                  title: const Text("Privacy Policy"),
                   onTap: () {
                     _showPrivacyPolicyDialog(context);
                   },
                 ),
                 ListTile(
-                  leading: Icon(Icons.exit_to_app),
-                  title: Text("Log Out"),
+                  leading: const Icon(Icons.exit_to_app),
+                  title: const Text("Log Out"),
                   onTap: () async {
+                    // Clear the secure storage
                     await _storage.deleteAll();
-                    Navigator.of(context).pushReplacementNamed('Doctor_login');
+                    // Navigate back to login screen
+                    Navigator.of(context).pushReplacementNamed('login');
+
                   },
                 ),
               ],
@@ -246,12 +448,12 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text("Privacy Policy"),
-          content: SingleChildScrollView(
-            child: Text("Your privacy policy text goes here."),
-          ),
+          content: Text("Here you can display the privacy policy."),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
               child: Text("Close"),
             ),
           ],
@@ -260,202 +462,6 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text("Doctor Profile"),
-        backgroundColor: const Color(0xff6be4d7),
-        actions: [
-          // Settings Icon
-          IconButton(
-            icon: Icon(Icons.settings),
-            onPressed: _showSettingsMenu,
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          // Background Image
-          Container(
-            decoration: BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('images/back.jpg'),
-                fit: BoxFit.cover,
-              ),
-            ),
-            child: Container(
-              color: Colors.black.withOpacity(0.2), // Semi-transparent overlay
-            ),
-          ),
-          // Foreground Content
-          isLoading
-              ? Center(child: CircularProgressIndicator())
-              : SingleChildScrollView( // Wrap the content in SingleChildScrollView
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: CircleAvatar(
-                        radius: 60,
-                        backgroundImage: doctorData!['photo'] != null
-                            ? NetworkImage(doctorData!['photo'])
-                            : AssetImage('assets/doctor.jpg') as ImageProvider,
-                      ),
-                    ),
-                    SizedBox(height: 16),
-                    TextFormField(
-                      controller: _nameController,
-                      decoration: InputDecoration(
-                        labelText: 'Name',
-                        labelStyle: TextStyle(color: Colors.black,fontWeight: FontWeight.bold), // White label
-                        focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.black),
-                        ),
-                      ),
-                      style: TextStyle(color: Colors.white,fontSize:17,fontWeight: FontWeight.bold), // White text
-                      validator: (value) => value!.isEmpty ? 'Name is required' : null,
-                    ),
-                    TextFormField(
-                      controller: _usernameController,
-                      decoration: InputDecoration(
-                        labelText: 'Username',
-                        labelStyle: TextStyle(color: Colors.black,fontWeight: FontWeight.bold), // White label
-                        focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.black),
-                        ),
-                      ),
-                      style: TextStyle(color: Colors.white,fontSize:17,fontWeight: FontWeight.bold), // White text
-                    ),
-                    TextFormField(
-                      controller: _specializationController,
-                      decoration: InputDecoration(
-                        labelText: 'Specialization',
-                        labelStyle: TextStyle(color: Colors.black,fontWeight: FontWeight.bold), // White label
-                        focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.black),
-                        ),
-                      ),
-                      style: TextStyle(color: Colors.white,fontSize:17,fontWeight: FontWeight.bold), // White text
-                    ),
-                    TextFormField(
-                      controller: _phoneController,
-                      decoration: InputDecoration(
-                        labelText: 'Phone',
-                        labelStyle: TextStyle(color: Colors.black,fontWeight: FontWeight.bold), // White label
-                        focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.black),
-                        ),
-                      ),
-                      style: TextStyle(color: Colors.white,fontSize:17,fontWeight: FontWeight.bold), // White text
-                    ),
-                    TextFormField(
-                      controller: _emailController,
-                      decoration: InputDecoration(
-                        labelText: 'Email',
-                        labelStyle: TextStyle(color: Colors.black,fontWeight: FontWeight.bold), // White label
-                        focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.black),
-                        ),
-                      ),
-                      style: TextStyle(color: Colors.white,fontSize:17,fontWeight: FontWeight.bold), // White text
-                      validator: (value) => value!.isEmpty ? 'Email is required' : null,
-                      enabled: false, // Make email read-only
 
-                    ),
-                    TextFormField(
-                      controller: _addressController,
-                      decoration: InputDecoration(
-                        labelText: 'Address',
-                        labelStyle: TextStyle(color: Colors.black,fontWeight: FontWeight.bold), // White label
-                        focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.black),
-                        ),
-                      ),
-                      style: TextStyle(color: Colors.white,fontSize:17,fontWeight: FontWeight.bold), // White text
-                    ),
-                    TextFormField(
-                      controller: _hospitalController,
-                      decoration: InputDecoration(
-                        labelText: 'Hospital',
-                        labelStyle: TextStyle(color: Colors.black,fontWeight: FontWeight.bold), // White label
-                        focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.black),
-                        ),
-                      ),
-                      style: TextStyle(color: Colors.white,fontSize:17,fontWeight: FontWeight.bold), // White text
-                    ),
-                    TextFormField(
-                      controller: _priceController,
-                      decoration: InputDecoration(
-                        labelText: 'Price per Hour',
-                        labelStyle: TextStyle(color: Colors.black,fontWeight: FontWeight.bold), // White label
-                        focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.black),
-                        ),
-                      ),
-                      style: TextStyle(color: Colors.white,fontSize:17,fontWeight: FontWeight.bold), // White text
-                      keyboardType: TextInputType.number,
-                    ),
-                    TextFormField(
-                      controller: _yearExperienceController,
-                      decoration: InputDecoration(
-                        labelText: 'Years of Experience',
-                        labelStyle: TextStyle(color: Colors.black,fontWeight: FontWeight.bold), // White label
-                        focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.black),
-                        ),
-                      ),
-                      style: TextStyle(color: Colors.white,fontSize:17,fontWeight: FontWeight.bold), // White text
-                      keyboardType: TextInputType.number,
-                    ),
-                    SizedBox(height: 20),
-                    Center(
-                      child:ElevatedButton(
-                        onPressed: _updateDoctorProfile,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xff2f9a8f),
-                          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                        ),
 
-                        child: const Text(
-                            'Update Profile ',
-                            style: TextStyle(fontSize: 18,color: Colors.white,)
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  Widget _buildProfileTextField(TextEditingController controller, String labelText) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: TextFormField(
-        controller: controller,
-        decoration: InputDecoration(
-          labelText: labelText,
-          border: OutlineInputBorder(),
-        ),
-        validator: (value) {
-          if (value == null || value.isEmpty) {
-            return "$labelText is required";
-          }
-          return null;
-        },
-      ),
-    );
-  }
 }

@@ -4,8 +4,11 @@ import 'dart:convert'; // For parsing the JSON response
 import 'patApp.dart';
 class AllDoctorsPage extends StatefulWidget {
   final String? initialSpecialty; // Accept an optional initial specialty
+  final String patientId; // Add this field to accept the patientId
 
-  const AllDoctorsPage({Key? key, this.initialSpecialty}) : super(key: key);
+  const AllDoctorsPage({Key? key,
+  required this.patientId, // Accept patientId in the constructor
+  this.initialSpecialty}) : super(key: key);
 
   @override
   _AllDoctorsPageState createState() => _AllDoctorsPageState();
@@ -16,7 +19,6 @@ class _AllDoctorsPageState extends State<AllDoctorsPage> {
   List<String> specialties = ['All', 'General', 'Cardiology', 'Pediatrics', 'Neurology', 'Orthopedics', 'Dermatology'];
   String selectedSpecialty = 'All';
   String searchText = '';
-  String patientId = "patient-id"; // Add your patientId here or pass it from the parent widget
 
   @override
   void initState() {
@@ -178,7 +180,7 @@ class _AllDoctorsPageState extends State<AllDoctorsPage> {
                       reviews: doctor['reviews'],
                       rating: doctor['rating'],
                       yearsOfExperience: doctor['yearExperience'],
-                      patientId: patientId,  // Pass patientId to DoctorCard
+                      patientId: widget.patientId,  // Pass patientId to DoctorCard
                     );
                   },
                 ),

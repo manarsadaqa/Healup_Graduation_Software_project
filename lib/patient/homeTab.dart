@@ -234,7 +234,7 @@ class _HomeTabState extends State<HomeTab> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => AllDoctorsPage(),
+                            builder: (context) => AllDoctorsPage(patientId: patientId),
                           ),
                         );
                       },
@@ -297,7 +297,7 @@ class _HomeTabState extends State<HomeTab> {
   Navigator.push(
     context,
     MaterialPageRoute(
-      builder: (context) => AllDoctorsPage(initialSpecialty: specialty),
+      builder: (context) => AllDoctorsPage(patientId: patientId,initialSpecialty: specialty),
     ),
   );
 }

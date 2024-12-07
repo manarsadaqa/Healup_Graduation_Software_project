@@ -124,6 +124,7 @@ class _DoctorLoginPageState extends State<DoctorLoginPage> {
                             controller: _emailController,
                             decoration: InputDecoration(
                               labelText: 'Email',
+                              labelStyle: TextStyle(color: Colors.grey[700]),
                               prefixIcon: const Icon(Icons.email),
                               filled: true,
                               fillColor: Colors.white.withOpacity(0.9),
@@ -146,6 +147,7 @@ class _DoctorLoginPageState extends State<DoctorLoginPage> {
                             obscureText: true,
                             decoration: InputDecoration(
                               labelText: 'Password',
+                              labelStyle: TextStyle(color: Colors.grey[700]),
                               prefixIcon: const Icon(Icons.lock),
                               filled: true,
                               fillColor: Colors.white.withOpacity(0.9),
@@ -160,6 +162,18 @@ class _DoctorLoginPageState extends State<DoctorLoginPage> {
                               }
                               return null;
                             },
+                          ),
+                          const SizedBox(height: 20),
+                          // Forgot Password Button (Aligned to the left)
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: (){},
+                              child: const Text(
+                                'Forgot Password?',
+                                style: TextStyle(color: Colors.black, fontSize: 16),
+                              ),
+                            ),
                           ),
                           const SizedBox(height: 20),
                           // Login Button

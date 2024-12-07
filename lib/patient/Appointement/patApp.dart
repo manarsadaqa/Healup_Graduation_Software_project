@@ -111,7 +111,17 @@ class _PatAppState extends State<PatApp> {
       return;
     }
 
-    final apiUrl = "http://localhost:5000/api/healup/appointments/book";
+    final apiUrl = "http://localhost:5000/api/healup/appointments/book"; // Replace localhost with IP
+
+    // Print the patientId, doctorId, and payload to debug
+    print("Patient ID: ${widget.patientId}");
+    print("Doctor ID: ${widget.doctorId}");
+    print("Payload: ${jsonEncode({
+      "patient_id": widget.patientId,
+      "doctor_id": widget.doctorId,
+      "app_date": "$date $time",
+    })}");
+
     try {
       final response = await http.post(
         Uri.parse(apiUrl),
@@ -122,6 +132,9 @@ class _PatAppState extends State<PatApp> {
           "app_date": "$date $time",
         }),
       );
+
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
 
       if (response.statusCode == 201) {
         setState(() {
@@ -139,15 +152,18 @@ class _PatAppState extends State<PatApp> {
         );
       }
     } catch (error) {
+      print('Error: $error');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Wrong: Unable to book appointment.")),
+        const SnackBar(content: Text("Unable to book appointment.")),
       );
     }
   }
 
 
+
   @override
   Widget build(BuildContext context) {
+    print('Patient ID: ${widget.patientId}'); // Debugging statement
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.name),
