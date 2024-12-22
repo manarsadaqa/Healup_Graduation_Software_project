@@ -44,7 +44,7 @@ class _PatientPageState extends State<PatientPage> {
           onPatientIdReceived: _onPatientIdReceived,
         ),
         ChatBot(patientId: patientId),
-        const SearchMedicinePage(),
+        SearchMedicinePage(patientId: patientId), // Pass patientId here
         ScheduleScreen(patientId: patientId), // Pass patientId to ScheduleScreen
         PatProfile(patientId: patientId),
       ];

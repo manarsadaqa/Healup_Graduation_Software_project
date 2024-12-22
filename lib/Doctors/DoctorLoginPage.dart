@@ -27,7 +27,7 @@ class _DoctorLoginPageState extends State<DoctorLoginPage> {
       try {
         // Replace with your backend URL
         final response = await http.post(
-          Uri.parse('http://localhost:5000/api/healup/doctors/login'),
+          Uri.parse('http://10.0.2.2:5000/api/healup/doctors/login'),
           headers: {'Content-Type': 'application/json'},
           body: json.encode({'email': email, 'password': password}),
         );
@@ -49,8 +49,10 @@ class _DoctorLoginPageState extends State<DoctorLoginPage> {
           _showErrorDialog(responseData['message'] ?? 'Invalid email or password');
         }
       } catch (e) {
+        print('Error: $e');
         _showErrorDialog('An error occurred. Please try again later.');
       }
+
     }
   }
 

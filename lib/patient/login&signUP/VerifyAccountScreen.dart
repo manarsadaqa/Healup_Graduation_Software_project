@@ -1,105 +1,99 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert'; // For parsing the JSON response
-import 'package:awesome_dialog/awesome_dialog.dart';
+import 'dart:convert';
 import '../PatientPage.dart';
 
-
-
 class VerifyEmailPage extends StatefulWidget {
-  final String email;
+  final String token;
 
-  const VerifyEmailPage({Key? key, required this.email}) : super(key: key);
+  const VerifyEmailPage({Key? key, required this.token}) : super(key: key);
 
   @override
   _VerifyEmailPageState createState() => _VerifyEmailPageState();
 }
 
 class _VerifyEmailPageState extends State<VerifyEmailPage> {
-  bool isChecking = false;
-  bool isVerified = false;
+  bool isLoading = false;
+  bool verificationSuccess = false;
+  String message = '';
 
-  Future<void> checkVerification() async {
-    setState(() => isChecking = true);
+  @override
+  void initState() {
+    super.initState();
+    verifyEmail();
+  }
+
+  Future<void> verifyEmail() async {
+    setState(() {
+      isLoading = true;
+    });
 
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:5000/api/healup/patients/${widget.email}'),
+        Uri.parse('http://10.0.2.2:5000/api/healup/patients/verify/${widget.token}'),
       );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        if (data['isVerified'] == true) {
-          setState(() => isVerified = true);
-          AwesomeDialog(
-            context: context,
-            dialogType: DialogType.success,
-            title: 'Verified',
-            desc: 'Your email has been verified. You can now log in.',
-            btnOkOnPress: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => PatientPage()),
-              );
-            },
-          ).show();
-        } else {
-          AwesomeDialog(
-            context: context,
-            dialogType: DialogType.warning,
-            title: 'Not Verified',
-            desc: 'Your email has not been verified yet. Please check your email.',
-            btnOkOnPress: () {},
-          ).show();
-        }
+        setState(() {
+          verificationSuccess = true;
+          message = data['message'];
+        });
+
+        // Redirect to patient page after 2 seconds
+        Future.delayed(const Duration(seconds: 2), () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => PatientPage()),
+          );
+        });
       } else {
-        AwesomeDialog(
-          context: context,
-          dialogType: DialogType.error,
-          title: 'Error',
-          desc: 'Could not fetch verification status. Try again later.',
-          btnOkOnPress: () {},
-        ).show();
+        final data = json.decode(response.body);
+        setState(() {
+          verificationSuccess = false;
+          message = data['message'] ?? 'Verification failed';
+        });
       }
     } catch (e) {
-      AwesomeDialog(
-        context: context,
-        dialogType: DialogType.error,
-        title: 'Error',
-        desc: 'Could not connect to the server.',
-        btnOkOnPress: () {},
-      ).show();
+      setState(() {
+        verificationSuccess = false;
+        message = 'Error connecting to server';
+      });
     } finally {
-      setState(() => isChecking = false);
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Verify Email'),
-        backgroundColor: const Color(0xff2f9a8f),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+      body: Center(
+        child: isLoading
+            ? const CircularProgressIndicator()
+            : Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            Icon(
+              verificationSuccess ? Icons.check_circle : Icons.error,
+              color: verificationSuccess ? Colors.green : Colors.red,
+              size: 80,
+            ),
+            const SizedBox(height: 20),
             Text(
-              'We have sent a verification email to ${widget.email}. Please verify your email to proceed.',
-              style: const TextStyle(fontSize: 16),
+              message,
+              style: const TextStyle(fontSize: 18),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xff2f9a8f),
-              ),
-              onPressed: isChecking ? null : checkVerification,
-              child: isChecking
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('Check Verification'),
+            verificationSuccess
+                ? const SizedBox.shrink()
+                : ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Go Back'),
             ),
           ],
         ),

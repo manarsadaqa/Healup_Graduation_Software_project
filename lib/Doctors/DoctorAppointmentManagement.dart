@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert'; // For JSON parsing
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart'; // For parsing custom date format
+import 'PrescriptionFormPage.dart';
+import 'reportForm.dart';
 
 class AppointmentManagementPage extends StatefulWidget {
   const AppointmentManagementPage({Key? key}) : super(key: key);
@@ -18,10 +20,14 @@ class _AppointmentManagementPageState extends State<AppointmentManagementPage>
   List<Map<String, dynamic>> pendingRequests = [];
   List<Map<String, dynamic>> confirmedAppointments = [];
   List<Map<String, dynamic>> pastAppointments = [];
+  Map<String, bool> _prescriptionSubmitted = {};
+  Set<String> submittedReports = {};
+
 
   bool showPending = false;
   bool showConfirmed = false;
   bool showPast = false;
+  bool _isPrescriptionSubmitted = false;
 
   // Animation controllers for each section
   late AnimationController _pendingAnimationController;
@@ -86,7 +92,7 @@ class _AppointmentManagementPageState extends State<AppointmentManagementPage>
     }
 
     final response = await http.get(
-      Uri.parse('http://localhost:5000/api/healup/appointments/doctor/$doctorId'),
+      Uri.parse('http://10.0.2.2:5000/api/healup/appointments/doctor/$doctorId'),
     );
 
     if (response.statusCode == 200) {
@@ -109,12 +115,17 @@ class _AppointmentManagementPageState extends State<AppointmentManagementPage>
           final DateTime now = DateTime.now();
           if (appDate.isBefore(now)) {
             pastAppointments.add(appointment); // Move to past if the date is in the past
+            _updateAppointmentStatus(appointment['_id'], 'Completed');
+
+            // Initialize prescription state for past appointments
+            _prescriptionSubmitted[appointment['_id']] = false;
           } else if (status == 'Confirmed') {
             confirmedAppointments.add(appointment);
           } else {
             pendingRequests.add(appointment);
           }
         }
+
       }
 
       setState(() {});
@@ -125,12 +136,13 @@ class _AppointmentManagementPageState extends State<AppointmentManagementPage>
     }
   }
 
+
   // Update appointment status
   Future<void> _updateAppointmentStatus(String appointmentId, String newStatus) async {
     final Map<String, dynamic> body = {'status': newStatus};
     final response = await http.patch(
       Uri.parse(
-          'http://localhost:5000/api/healup/appointments/update-status/$appointmentId'),
+          'http://10.0.2.2:5000/api/healup/appointments/update-status/$appointmentId'),
       headers: {'Content-Type': 'application/json'},
       body: json.encode(body),
     );
@@ -147,10 +159,9 @@ class _AppointmentManagementPageState extends State<AppointmentManagementPage>
           pendingRequests.removeWhere(
                   (appointment) => appointment['_id'] == appointmentId);
         }
+
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Appointment status updated to $newStatus')),
-      );
+
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to update appointment status')),
@@ -180,7 +191,7 @@ class _AppointmentManagementPageState extends State<AppointmentManagementPage>
               ),
             ),
             child: Container(
-              color: Colors.black.withOpacity(0.5), // Semi-transparent overlay
+              color: Colors.black.withOpacity(0.3), // Semi-transparent overlay
             ),
           ),
           // Appointment Management UI
@@ -334,7 +345,7 @@ class _AppointmentManagementPageState extends State<AppointmentManagementPage>
           child: ListTile(
             leading: CircleAvatar(
               backgroundImage: patientImage.isNotEmpty
-                  ? NetworkImage(patientImage)
+                  ? AssetImage(patientImage)
                   : AssetImage('assets/placeholder.png') as ImageProvider,
             ),
             title: Text(
@@ -345,7 +356,7 @@ class _AppointmentManagementPageState extends State<AppointmentManagementPage>
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Show check and cancel buttons only for Pending Appointments
+                // Show check and cancel buttons only for "Pending Approval" appointments
                 if (status == "Pending Approval") ...[
                   IconButton(
                     icon: const Icon(Icons.check, color: Colors.green),
@@ -360,27 +371,119 @@ class _AppointmentManagementPageState extends State<AppointmentManagementPage>
                     },
                   ),
                 ],
-                // Prescription Icon for Past Appointments
+
+                // Show Prescription Icon for "Completed" appointments
                 if (status == "Completed") ...[
                   IconButton(
-                    icon: const Icon(Icons.medical_services, color: Colors.blue),
-                    onPressed: () {
-                      // Add action for prescription
-                      print('Prescription icon pressed');
+                    icon: Icon(
+                      Icons.medical_services,
+                      color: _prescriptionSubmitted[appointment['_id']] == true
+                          ? Colors.grey // Disabled if prescription submitted
+                          : Colors.blue, // Active if prescription not submitted
+                    ),
+                    onPressed: _prescriptionSubmitted[appointment['_id']] == true
+                        ? null // Disable the button if prescription is already submitted
+                        : () async {
+                      // Navigate to the PrescriptionFormPage
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) {
+                            // Calculate patient's age from DOB
+                            String dob = appointment['patient_id']['DOB'];
+                            DateTime birthDate = DateTime.parse(dob);
+                            DateTime today = DateTime.now();
+                            int age = today.year - birthDate.year;
+
+                            // Adjust if the birthday hasn't occurred yet this year
+                            if (today.month < birthDate.month ||
+                                (today.month == birthDate.month &&
+                                    today.day < birthDate.day)) {
+                              age--;
+                            }
+
+                            return PrescriptionFormPage(
+                              doctorId: appointment['doctor_id']['_id'],
+                              doctorName: appointment['doctor_id']['name'],
+                              doctorSpeclization: appointment['doctor_id']['specialization'],
+                              doctorPhone: appointment['doctor_id']['phone'],
+                              doctorHospital: appointment['doctor_id']['hospital'],
+                              patientId: appointment['patient_id']['_id'],
+                              patientName: appointment['patient_id']['username'],
+                              patientAge: age,
+                              appDate: appointment['app_date'],
+                              appointmentId: appointment['_id'],
+                            );
+                          },
+                        ),
+                      );
+
+                      // If the prescription was submitted, update the state
+                      if (result == true) {
+                        setState(() {
+                          _prescriptionSubmitted[appointment['_id']] = true;
+                        });
+                      }
                     },
                   ),
-                  // Report Icon for Past Appointments
+
+                  // Show Report Icon for "Completed" appointments
                   IconButton(
-                    icon: const Icon(Icons.article, color: Colors.orange),
-                    onPressed: () {
-                      // Add action for report
-                      print('Report icon pressed');
+                    icon: Icon(
+                      Icons.article,
+                      color: submittedReports.contains(appointmentId)
+                          ? Colors.grey
+                          : Colors.yellow,
+                    ),
+                    onPressed: submittedReports.contains(appointmentId)
+                        ? null
+                        : () async {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) {
+                            String dob = appointment['patient_id']['DOB'];
+                            DateTime birthDate = DateTime.parse(dob);
+                            DateTime today = DateTime.now();
+                            int age = today.year - birthDate.year;
+
+                            if (today.month < birthDate.month ||
+                                (today.month == birthDate.month && today.day < birthDate.day)) {
+                              age--;
+                            }
+
+                            return ReportFormPage(
+                              appointmentId: appointment['_id'],
+                              appointmentDate: appointment['app_date'],
+                              doctorName: appointment['doctor_id']['name'],
+                              doctorSpeclization: appointment['doctor_id']['specialization'],
+                              doctorPhone: appointment['doctor_id']['phone'],
+                              doctorHospital: appointment['doctor_id']['hospital'],
+                              doctorSeal: appointment['doctor_id']['seal'],
+                              patientName: appointment['patient_id']['username'],
+                              patientAge: age,
+                              medicalHistory: appointment['patient_id']['medical_history'],
+                              onReportSubmitted: (appointmentId) {
+                                setState(() {
+                                  submittedReports.add(appointmentId);  // Update the state after report submission
+                                });
+                              },
+                            );
+                          },
+                        ),
+                      );
+
+                      if (result == true) {
+                        // Handle any other state changes after returning from the ReportFormPage
+                      }
                     },
                   ),
                 ],
               ],
             ),
           ),
+
+
         );
       }).toList(),
     );

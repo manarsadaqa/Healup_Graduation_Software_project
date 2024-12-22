@@ -58,7 +58,7 @@ class _PatSignUpPageState extends State<PatSignUpPage> {
 
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:5000/api/healup/patients'),
+        Uri.parse('http://10.0.2.2:5000/api/healup/patients'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(signUpData),
       );
@@ -71,10 +71,13 @@ class _PatSignUpPageState extends State<PatSignUpPage> {
           title: 'Verify Email',
           desc: 'A verification email has been sent. Please verify your email before logging in.',
           btnOkOnPress: () {
+            final token = json.decode(response.body)['token'];
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => VerifyEmailPage(email: _emailController.text)),
+              MaterialPageRoute(builder: (context) => VerifyEmailPage(token: token)),
             );
+
+
           },
         ).show();
       } else {

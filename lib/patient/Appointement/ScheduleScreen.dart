@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:first/patient/Appointement/EHRdetailsPage.dart'; // Adjust the import path as needed
+import 'package:first/patient/Appointement/patientPrescriptionForm.dart'; // Adjust the import path as needed
 
 class ScheduleScreen extends StatefulWidget {
   final String patientId;
@@ -13,11 +15,13 @@ class ScheduleScreen extends StatefulWidget {
 
 class _ScheduleScreenState extends State<ScheduleScreen> {
   List<Map<String, dynamic>> appointments = [];
+  Map<String, dynamic> prescriptionData = {}; // Store prescription data
+
   bool isLoading = true;
   Map<String, String> doctorPhotos = {}; // To store doctor photos
   List<String> availableTimeSlots = [];
   List<String> bookedTimeSlots = [];  // Track booked slots for validation
-  static const String baseUrl = "http://localhost:5000/";
+  static const String baseUrl = "http://10.0.2.2:5000/";
 
   @override
   void initState() {
@@ -25,6 +29,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     fetchAppointments();
     fetchAllDoctors();
   }
+
 
   Future<void> fetchAppointments() async {
     if (widget.patientId.isEmpty) {
@@ -37,7 +42,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       return;
     }
 
-    final apiUrl = "http://localhost:5000/api/healup/appointments/patient/${widget.patientId}";
+    final apiUrl = "http://10.0.2.2:5000/api/healup/appointments/patient/${widget.patientId}";
     try {
       final response = await http.get(Uri.parse(apiUrl));
 
@@ -63,7 +68,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
 // Fetch all doctors' data
   Future<void> fetchAllDoctors() async {
-    final apiUrl = "http://localhost:5000/api/healup/doctors/doctors";
+    final apiUrl = "http://10.0.2.2:5000/api/healup/doctors/doctors";
     try {
       print("Fetching doctors...");  // Check if the function is being called
       final response = await http.get(Uri.parse(apiUrl));
@@ -98,7 +103,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
 
   Future<void> fetchDoctorAvailableSlots(String doctorId, String date) async {
-    final apiUrl = "http://localhost:5000/api/healup/appointments/doctor/$doctorId/available-slots/$date";
+    final apiUrl = "http://10.0.2.2:5000/api/healup/appointments/doctor/$doctorId/available-slots/$date";
     try {
       final response = await http.get(Uri.parse(apiUrl));
 
@@ -138,7 +143,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       return; // Don't proceed with updating the appointment if the slot is taken
     }
 
-    final apiUrl = "http://localhost:5000/api/healup/appointments/update-date/${widget.patientId}";
+    final apiUrl = "http://10.0.2.2:5000/api/healup/appointments/update-date/${widget.patientId}";
 
     try {
       final response = await http.patch(
@@ -236,7 +241,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
 
   Future<void> deleteAppointment(String appointmentId) async {
-    final apiUrl = "http://localhost:5000/api/healup/appointments/delete/$appointmentId";
+    final apiUrl = "http://10.0.2.2:5000/api/healup/appointments/delete/$appointmentId";
     try {
       final response = await http.delete(Uri.parse(apiUrl));
 
@@ -256,6 +261,98 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       );
     }
   }
+  Future<void> fetchPrescription(String appointmentId) async {
+    final apiUrl = "http://10.0.2.2:5000/api/healup/prescriptions/appointment/$appointmentId";
+
+    try {
+      final response = await http.get(Uri.parse(apiUrl));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final doctorSpecialization=data['prescription']['doctor_id']['specialization'];
+        final doctorPhone=data['prescription']['doctor_id']['phone'];
+        final doctorHospital=data['prescription']['doctor_id']['hospital'];
+
+        final prescriptionText = data['prescription']['prescription_text'] ?? '';
+
+        // Extract the fields from the prescription text
+        final doctorName = RegExp(r"Doctor Name: (.+)").firstMatch(prescriptionText)?.group(1) ?? 'N/A';
+        final patientName = RegExp(r"Patient Name: (.+)").firstMatch(prescriptionText)?.group(1) ?? 'N/A';
+        final patientAge = RegExp(r"Patient Age: (\d+)").firstMatch(prescriptionText)?.group(1) ?? 'N/A';
+        final date = RegExp(r"Date: (.+)").firstMatch(prescriptionText)?.group(1) ?? 'N/A';
+
+        // Extract medications
+        final medicationPattern = RegExp(r"- ID: (.+), Name: (.+), Quantity: (\d+), Dosage: (.+)");
+        final medications = medicationPattern
+            .allMatches(prescriptionText)
+            .map((match) => {
+          'id': match.group(1) ?? '', // Provide default empty string if null
+          'name': match.group(2) ?? '', // Provide default empty string if null
+          'quantity': match.group(3) ?? '', // Provide default empty string if null
+          'dosage': match.group(4) ?? '', // Provide default empty string if null
+        })
+            .toList();
+
+
+        // Navigate to PrescriptionPage
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PrescriptionPage(
+              doctorSpecialization:doctorSpecialization,
+              doctorName: doctorName,
+              doctorPhone:doctorPhone,
+              doctorHospital:doctorHospital,
+              patientName: patientName,
+              patientAge: patientAge,
+              date: date,
+              medications: medications,
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("The Prescription is currently not available. Please try again later.")),
+        );
+      }
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error fetching prescription: $error")),
+      );
+    }
+  }
+
+  Future<void> fetchEHR(String appointmentId, BuildContext context) async {
+    final apiUrl = "http://10.0.2.2:5000/api/healup/ehr/appointment_id/$appointmentId";
+
+    try {
+      final response = await http.get(Uri.parse(apiUrl));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final ehrRecord = data['ehrRecord'];  // Extract 'ehrRecord'
+
+        // Navigate to EHR details page, passing the 'ehrRecord'
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EHRDetailPage(ehr: ehrRecord),  // Correctly pass the 'ehrRecord'
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("The EHR is currently not available. Please try again later.")),
+        );
+      }
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error fetching EHR: $error")),
+      );
+    }
+  }
+
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -301,8 +398,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                   leading: CircleAvatar(
                     radius: 25.0,
                     backgroundImage: (doctorPhoto?.isNotEmpty ?? false)
-                        ? NetworkImage(doctorPhoto!) // Display doctor's photo
-                        : AssetImage('assets/images/person_icon.png') as ImageProvider,   // Fallback to default image
+                        ? AssetImage(doctorPhoto!) // Display doctor's photo
+                        : AssetImage('assets/images/person_icon.png') as ImageProvider, // Fallback to default image
                     child: (doctorPhoto == null || doctorPhoto!.isEmpty)
                         ? const Icon(Icons.person)  // If no photo URL, show default icon
                         : null,
@@ -310,8 +407,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                   title: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(doctorName,
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black),),
+                      Text(
+                        doctorName,
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black),
+                      ),
                       Text(
                         doctorSpecialty,  // Display doctor's specialty here
                         style: TextStyle(fontStyle: FontStyle.normal, color: Colors.grey),
@@ -320,29 +419,51 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                   ),
                   subtitle: Text(
                     "${appointment['app_date']} - ${appointment['status']}",
-                    style: TextStyle(color: Color(0xff2f9a8f),fontWeight: FontWeight.bold),
+                    style: TextStyle(color: Color(0xff2f9a8f), fontWeight: FontWeight.bold),
                   ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.blue),
-                        onPressed: () {
-                          if (doctorId != null) {
-                            _showDateTimePicker(appointment['_id'], doctorId);
-                          }
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () {
-                          deleteAppointment(appointment['_id']);
-                        },
-                      ),
+                      // If the status is not 'completed', show the edit and delete icons
+                      if (appointment['status'] != 'Completed')
+                        IconButton(
+                          icon: const Icon(Icons.edit, color: Colors.blue),
+                          onPressed: () {
+                            if (doctorId != null) {
+                              _showDateTimePicker(appointment['_id'], doctorId);
+                            }
+                          },
+                        ),
+                      if (appointment['status'] != 'Completed')
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () {
+                            deleteAppointment(appointment['_id']);
+                          },
+                        ),
+                      // If the status is 'completed', show the medical_services and article icons
+                      if (appointment['status'] == 'Completed')
+                        IconButton(
+                          icon: const Icon(Icons.medical_services, color: Colors.blue),
+                          onPressed: () {
+                            fetchPrescription(appointment['_id']);
+                          },
+                        ),
+
+                      if (appointment['status'] == 'Completed')
+                        IconButton(
+                          icon: const Icon(Icons.article, color: Colors.yellow),
+                          onPressed: () {
+                            // Handle article click, if needed
+                            fetchEHR(appointment['_id'],context);
+                          },
+                        ),
                     ],
                   ),
+
                 ),
               );
+
             },
           )
 

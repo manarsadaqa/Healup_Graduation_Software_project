@@ -37,7 +37,7 @@ class _ChatBotState extends State<ChatBot> {
   }
 
   Future<void> _fetchUsername() async {
-    final apiUrl = "http://localhost:5000/api/healup/patients/getPatientById/${widget
+    final apiUrl = "http://10.0.2.2:5000/api/healup/patients/getPatientById/${widget
         .patientId}";
 
     try {
@@ -152,7 +152,7 @@ class _ChatBotState extends State<ChatBot> {
       });
     });
 
-    const apiUrl = "http://localhost:5000/api/healup/Symptoms/recommend-doctor";
+    const apiUrl = "http://10.0.2.2:5000/api/healup/Symptoms/recommend-doctor";
 
     try {
       final response = await http.post(

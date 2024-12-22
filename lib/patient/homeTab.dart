@@ -61,7 +61,7 @@ class _HomeTabState extends State<HomeTab> {
 
 
   Future<void> fetchDoctors() async {
-    final response = await http.get(Uri.parse('http://localhost:5000/api/healup/doctors/doctors'));
+    final response = await http.get(Uri.parse('http://10.0.2.2:5000/api/healup/doctors/doctors'));
 
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
@@ -132,20 +132,21 @@ class _HomeTabState extends State<HomeTab> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Hi, $userName!',
-                          style: const TextStyle(
-                              fontSize: 24, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'How are you today?',
-                          style: TextStyle(fontSize: 18, color: Colors.grey[800]),
-                        ),
-                      ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Hi, $userName!',
+                            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'How are you today?',
+                            style: TextStyle(fontSize: 18, color: Colors.grey[800]),
+                          ),
+                        ],
+                      ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.notifications, size: 33),
@@ -156,6 +157,7 @@ class _HomeTabState extends State<HomeTab> {
                     ),
                   ],
                 ),
+
                 ClipRRect(
                   borderRadius: BorderRadius.circular(80),
                   child: Image.asset(
@@ -347,12 +349,14 @@ class DoctorCard extends StatelessWidget {
       elevation: 5,
       child: ListTile(
         leading: CircleAvatar(
-          backgroundImage: NetworkImage(photo),
+          backgroundImage: AssetImage(photo),
           radius: 25,
         ),
-        title: Text(
-          name,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+        title: Expanded( // Wrap the title with Expanded to avoid overflow
+          child: Text(
+            name,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -390,6 +394,7 @@ class DoctorCard extends StatelessWidget {
                 specialization: specialization,
                 photo: photo,
                 address: address,
+                hospital:hospital,
                 availability: availability,
                 yearsOfExperience: yearExperience,
                 price: price,
@@ -402,6 +407,7 @@ class DoctorCard extends StatelessWidget {
         },
       ),
     );
+
   }
 }
 

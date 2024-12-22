@@ -21,7 +21,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
 
       try {
         final response = await http.patch(
-          Uri.parse('http://localhost:5000/api/healup/patients/resetPassword/${widget.token}'),
+          Uri.parse('http://10.0.2.2:5000/api/healup/patients/resetPassword/${widget.token}'),
           headers: {'Content-Type': 'application/json'},
           body: json.encode({'password': newPassword}),
         );

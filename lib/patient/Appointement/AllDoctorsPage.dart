@@ -32,7 +32,7 @@ class _AllDoctorsPageState extends State<AllDoctorsPage> {
   }
 
   Future<void> fetchAllDoctors() async {
-    final response = await http.get(Uri.parse('http://localhost:5000/api/healup/doctors/doctors'));
+    final response = await http.get(Uri.parse('http://10.0.2.2:5000/api/healup/doctors/doctors'));
 
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
@@ -173,6 +173,7 @@ class _AllDoctorsPageState extends State<AllDoctorsPage> {
                       doctor_id: doctor['_id'],
                       name: doctor['name'],
                       photo: doctor['photo'],
+                      address:doctor['address'],
                       hospital: doctor['hospital'],
                       specialization: doctor['specialization'],
                       availability: doctor['availability'],
@@ -198,6 +199,7 @@ class DoctorCard extends StatelessWidget {
   final String doctor_id;
   final String name;
   final String photo;
+  final String address;
   final String hospital;
   final String specialization;
   final String availability;
@@ -212,6 +214,7 @@ class DoctorCard extends StatelessWidget {
     required this.doctor_id,
     required this.name,
     required this.photo,
+    required this.address,
     required this.hospital,
     required this.specialization,
     required this.availability,
@@ -234,7 +237,8 @@ class DoctorCard extends StatelessWidget {
               name: name,
               specialization: specialization,
               photo: photo,
-              address: hospital,  // You might want to pass hospital as address
+              address:address,
+              hospital: hospital,  // You might want to pass hospital as address
               availability: availability,  // You can customize this part as per your data
               yearsOfExperience: yearsOfExperience,  // You can also pass the actual years of experience if available
               price: price,  // Price for consultation, update as per your data
@@ -255,7 +259,7 @@ class DoctorCard extends StatelessWidget {
         elevation: 5,
         child: ListTile(
           leading: CircleAvatar(
-            backgroundImage: NetworkImage(photo.isEmpty ? 'default-image-url' : photo),  // Handle empty photo
+            backgroundImage: AssetImage(photo.isEmpty ? 'default-image-url' : photo),  // Handle empty photo
             radius: 25,
           ),
           title: Text(

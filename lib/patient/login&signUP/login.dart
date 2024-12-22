@@ -71,7 +71,7 @@ class _PatLoginPageState extends State<PatLoginPage> {
 
       try {
         final response = await http.post(
-          Uri.parse('http://localhost:5000/api/healup/patients/login'),
+          Uri.parse('http://10.0.2.2:5000/api/healup/patients/login'),
           headers: {'Content-Type': 'application/json'},
           body: json.encode({'email': email, 'password': password}),
         );
@@ -165,7 +165,7 @@ class _PatLoginPageState extends State<PatLoginPage> {
   Future<void> _sendResetPasswordRequest(String email) async {
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:5000/api/healup/patients/forgotPassword'),
+        Uri.parse('http://10.0.2.2:5000/api/healup/patients/forgotPassword'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'email': email}),
       );

@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'map_screen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'ScheduleScreen.dart';
+import 'package:first/services/notification_service.dart';
+import 'package:geocoding/geocoding.dart';
+
 
 class PatApp extends StatefulWidget {
   final String name;
   final String specialization;
   final String photo;
   final String address;
+  final String hospital;
   final String availability;
   final int yearsOfExperience;
   final double price;
@@ -24,6 +29,7 @@ class PatApp extends StatefulWidget {
     required this.specialization,
     required this.photo,
     required this.address,
+    required this.hospital,
     required this.availability,
     required this.yearsOfExperience,
     required this.price,
@@ -42,12 +48,27 @@ class _PatAppState extends State<PatApp> {
   DateTime currentMonth = DateTime.now();
   final Map<String, Set<String>> reservedTimesByDate = {};
 
+  // Fetch the coordinates of the address
+  Future<LatLng> _getCoordinates(String hospital) async {
+    try {
+      // Use geocoding package to get coordinates
+      List<Location> locations = await locationFromAddress(hospital);
+      // Return the first result's coordinates (latitude, longitude)
+      return LatLng(locations.first.latitude, locations.first.longitude);
+    } catch (e) {
+      print("Error getting coordinates: $e");
+      // Return a default location (or you can handle errors differently)
+      return LatLng(0.0, 0.0);
+    }
+  }
+
+
 
   // Fetch the reserved time slots for the selected doctor and date
   Future<void> fetchReservedTimes() async {
     if (selectedDate == null) return;
 
-    final apiUrl = "http://localhost:5000/api/healup/appointments/doctor/${widget.doctorId}/available-slots/$selectedDate";
+    final apiUrl = "http://10.0.2.2:5000/api/healup/appointments/doctor/${widget.doctorId}/available-slots/$selectedDate";
     try {
       final response = await http.get(Uri.parse(apiUrl));
 
@@ -111,7 +132,7 @@ class _PatAppState extends State<PatApp> {
       return;
     }
 
-    final apiUrl = "http://localhost:5000/api/healup/appointments/book"; // Replace localhost with IP
+    final apiUrl = "http://10.0.2.2:5000/api/healup/appointments/book"; // Replace localhost with IP
 
     // Print the patientId, doctorId, and payload to debug
     print("Patient ID: ${widget.patientId}");
@@ -144,7 +165,15 @@ class _PatAppState extends State<PatApp> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Appointment successfully booked!")),
         );
-      } else {
+
+
+        NotificationService.showNotification(
+            "Appointment Booked",
+            "Your appointment with Dr. ${widget.name} is confirmed!"
+        );
+
+
+      }  else {
         final responseData = jsonDecode(response.body);
         final message = responseData["message"] ?? "Failed to book appointment.";
         ScaffoldMessenger.of(context).showSnackBar(
@@ -205,12 +234,56 @@ class _PatAppState extends State<PatApp> {
                               style: const TextStyle(fontSize: 18, color: Colors.grey),
                             ),
                             Text('${widget.yearsOfExperience} years Experience'),
-                            Text('\$${widget.price}/hr', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            Text('\₪${widget.price}/hr', style: const TextStyle(fontWeight: FontWeight.bold)),
+
+                            // Hospital Address with Location Icon
+                            const SizedBox(height: 8), // Adding some space between price and address
+                            // Address Section with Location Icon
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.location_on,
+                                  color: Colors.red, // Red color for location icon
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8), // Space between icon and address text
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () async {
+                                      // Get the coordinates of the address
+                                      LatLng coordinates = await _getCoordinates(widget.hospital);
+                                      // Navigate to MapScreen with the address and location
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => MapScreen(
+                                            address: widget.hospital,
+                                            location: coordinates,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: Text(
+                                      widget.hospital,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.black, // Address text color
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      overflow: TextOverflow.ellipsis, // To avoid text overflow
+                                      maxLines: 1, // To display address on a single line
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+
                           ],
                         ),
                       ),
                     ],
                   ),
+
                   const SizedBox(height: 20),
 
                   // Month Navigation

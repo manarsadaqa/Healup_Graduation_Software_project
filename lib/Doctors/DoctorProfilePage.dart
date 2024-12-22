@@ -5,6 +5,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:in_app_review/in_app_review.dart';
 import 'package:first/patient/profile/ThemeNotifier.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 
 class DoctorProfilePage extends StatefulWidget {
   @override
@@ -14,6 +16,8 @@ class DoctorProfilePage extends StatefulWidget {
 class _DoctorProfilePageState extends State<DoctorProfilePage>
     with SingleTickerProviderStateMixin {
   final _storage = FlutterSecureStorage();
+  int _currentRating = 0; // This will hold the current star rating
+
   Map<String, dynamic>? doctorData;
   bool isLoading = true;
   final _formKey = GlobalKey<FormState>();
@@ -54,7 +58,7 @@ class _DoctorProfilePageState extends State<DoctorProfilePage>
       }
 
       final response = await http.get(
-        Uri.parse('http://localhost:5000/api/healup/doctors/doctor/$doctorId'),
+        Uri.parse('http://10.0.2.2:5000/api/healup/doctors/doctor/$doctorId'),
         headers: {'Content-Type': 'application/json'},
       );
 
@@ -63,6 +67,10 @@ class _DoctorProfilePageState extends State<DoctorProfilePage>
           doctorData = json.decode(response.body);
           isLoading = false;
         });
+
+        // Debugging photo URL
+        print('Photo URL: ${doctorData!['photo']}'); // Add this line here
+
         _populateFields();
       } else {
         throw Exception("Failed to load doctor details.");
@@ -80,7 +88,7 @@ class _DoctorProfilePageState extends State<DoctorProfilePage>
       try {
         String? doctorId = await _storage.read(key: 'doctor_id');
         final response = await http.put(
-          Uri.parse('http://localhost:5000/api/healup/doctors/$doctorId'),
+          Uri.parse('http://10.0.2.2:5000/api/healup/doctors/$doctorId'),
           headers: {'Content-Type': 'application/json'},
           body: json.encode({
             'name': _nameController.text,
@@ -113,35 +121,36 @@ class _DoctorProfilePageState extends State<DoctorProfilePage>
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text("Error"),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text("OK"),
+      builder: (ctx) =>
+          AlertDialog(
+            title: Text("Error"),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: Text("OK"),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
   void _showSuccessDialog(String message) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text("Success"),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text("OK"),
+      builder: (ctx) =>
+          AlertDialog(
+            title: Text("Success"),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: Text("OK"),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
-
 
 
   // Function to show confirmation dialog for turning off notifications
@@ -151,7 +160,8 @@ class _DoctorProfilePageState extends State<DoctorProfilePage>
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text("Turn off Notifications"),
-          content: const Text("Are you sure you want to turn off notifications?"),
+          content: const Text(
+              "Are you sure you want to turn off notifications?"),
           actions: <Widget>[
             TextButton(
               child: const Text("Cancel"),
@@ -198,31 +208,38 @@ class _DoctorProfilePageState extends State<DoctorProfilePage>
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, {bool isEmail = false}) {
+  Widget _buildTextField(String label, TextEditingController controller,
+      {bool isEmail = false}) {
     return TextFormField(
       controller: controller,
-      readOnly: isEmail,  // Set the email field as read-only
+      readOnly: isEmail, // Set the email field as read-only
       decoration: InputDecoration(
         labelText: label,
         labelStyle: TextStyle(
           color: Colors.grey[900],
           fontWeight: FontWeight.bold,
           fontSize: 18,
-        ), // Larger font size for label
-        floatingLabelBehavior: FloatingLabelBehavior.auto, // Ensures the label floats above the input field
+        ),
+        // Larger font size for label
+        floatingLabelBehavior: FloatingLabelBehavior.auto,
+        // Ensures the label floats above the input field
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15), // Increased border thickness
-          borderSide: BorderSide(color: _borderColor, width: 3), // Default border color
+          borderSide: BorderSide(
+              color: _borderColor, width: 3), // Default border color
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
-          borderSide: BorderSide(color: _borderColor, width: 3), // Default border color
+          borderSide: BorderSide(
+              color: _borderColor, width: 3), // Default border color
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
-          borderSide: BorderSide(color: Color(0xff2f9a8f), width: 3), // Border color when focused (clicked)
+          borderSide: BorderSide(color: Color(0xff2f9a8f),
+              width: 3), // Border color when focused (clicked)
         ),
-        fillColor: Colors.white.withOpacity(0.8), // White with 50% opacity
+        fillColor: Colors.white.withOpacity(0.8),
+        // White with 50% opacity
         filled: true,
       ),
       style: TextStyle(
@@ -232,9 +249,6 @@ class _DoctorProfilePageState extends State<DoctorProfilePage>
       ),
     );
   }
-
-
-
 
 
   @override
@@ -265,7 +279,7 @@ class _DoctorProfilePageState extends State<DoctorProfilePage>
               ),
             ),
             child: Container(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withOpacity(0.3),
             ),
           ),
           isLoading
@@ -283,8 +297,13 @@ class _DoctorProfilePageState extends State<DoctorProfilePage>
                       child: CircleAvatar(
                         radius: 60,
                         backgroundImage: doctorData!['photo'] != null
-                            ? NetworkImage(doctorData!['photo'])
-                            : AssetImage('assets/doctor.jpg')
+                            ? doctorData!['photo'].startsWith('http')
+                            ? NetworkImage(
+                            doctorData!['photo']) // Load from network
+                            : AssetImage(
+                            doctorData!['photo']) as ImageProvider // Load from assets
+                            : AssetImage('assets/doctor.jpg') // Default image
+
                         as ImageProvider,
                       ),
                     ),
@@ -326,21 +345,22 @@ class _DoctorProfilePageState extends State<DoctorProfilePage>
   List<Widget> _buildFields() {
     return [
       _buildTextField("Name", _nameController),
-      SizedBox(height: 10),
+      SizedBox(height: 20),
       _buildTextField("Username", _usernameController),
-      SizedBox(height: 10),
+      SizedBox(height: 20),
       _buildTextField("Specialization", _specializationController),
-      SizedBox(height: 10),
+      SizedBox(height: 20),
       _buildTextField("Phone", _phoneController),
-      SizedBox(height: 10),
-      _buildTextField("Email", _emailController, isEmail: true),  // Make email read-only
-      SizedBox(height: 10),
+      SizedBox(height: 20),
+      _buildTextField("Email", _emailController, isEmail: true),
+      // Make email read-only
+      SizedBox(height: 20),
       _buildTextField("Address", _addressController),
-      SizedBox(height: 10),
+      SizedBox(height: 20),
       _buildTextField("Hospital", _hospitalController),
-      SizedBox(height: 10),
+      SizedBox(height: 20),
       _buildTextField("Price per hour", _priceController),
-      SizedBox(height: 10),
+      SizedBox(height: 20),
       _buildTextField("Years of Experience", _yearExperienceController),
       SizedBox(height: 20),
     ];
@@ -363,7 +383,8 @@ class _DoctorProfilePageState extends State<DoctorProfilePage>
                     themeNotifier.isDarkMode
                         ? Icons.nightlight_round
                         : Icons.wb_sunny,
-                    color: themeNotifier.isDarkMode ? Colors.white : Colors.black,
+                    color: themeNotifier.isDarkMode ? Colors.white : Colors
+                        .black,
                   ),
                   title: const Text("Dark Mode"),
                   trailing: Switch(
@@ -404,18 +425,11 @@ class _DoctorProfilePageState extends State<DoctorProfilePage>
                 ListTile(
                   leading: const Icon(Icons.star),
                   title: const Text("Rate the App"),
-                  onTap: () async {
-                    final inAppReview = InAppReview.instance;
-                    if (await inAppReview.isAvailable()) {
-                      inAppReview.requestReview();
-                    } else {
-                      // You can show a message or redirect the user to the store
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("You cannot rate the app right now.")),
-                      );
-                    }
+                  onTap: () {
+                    _showRatingDialog();
                   },
                 ),
+
                 ListTile(
                   leading: const Icon(Icons.lock),
                   title: const Text("Privacy Policy"),
@@ -430,8 +444,7 @@ class _DoctorProfilePageState extends State<DoctorProfilePage>
                     // Clear the secure storage
                     await _storage.deleteAll();
                     // Navigate back to login screen
-                    Navigator.of(context).pushReplacementNamed('login');
-
+                    Navigator.of(context).pushReplacementNamed('Doctor_login');
                   },
                 ),
               ],
@@ -442,13 +455,90 @@ class _DoctorProfilePageState extends State<DoctorProfilePage>
     );
   }
 
+  void _showRatingDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Rate the App"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text("Please rate our app:"),
+              SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (index) {
+                  return IconButton(
+                    onPressed: () {
+                      setState(() {
+                        _currentRating = index + 1; // Update the rating
+                      });
+                    },
+                    icon: Icon(
+                      index < _currentRating ? Icons.star : Icons.star_border,
+                      color: Colors.amber, // Color of the star
+                      size: 40, // Star size
+                    ),
+                  );
+                }),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close dialog
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text("You rated this app $_currentRating stars."),
+                  ),
+                );
+              },
+              child: const Text("Submit"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+
+
   void _showPrivacyPolicyDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text("Privacy Policy"),
-          content: Text("Here you can display the privacy policy."),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Privacy Policy",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  "We take your privacy seriously. Below are some details on how we handle your data:\n\n"
+                      "1. **Data Collection**: We collect information to provide a better user experience. "
+                      "This may include your profile details, app usage data, and feedback.\n\n"
+                      "2. **Data Usage**: The data collected is used for analytics, improving app performance, "
+                      "and offering personalized services.\n\n"
+                      "3. **Third-Party Sharing**: We do not share your data with third parties except as required "
+                      "to provide services (e.g., payment processors) or comply with legal obligations.\n\n"
+                      "4. **Security**: We use industry-standard practices to protect your data. However, no method "
+                      "of transmission over the internet is 100% secure.\n\n"
+                      "For more information, please contact us at privacy@healthco.com.",
+                ),
+              ],
+            ),
+          ),
           actions: [
             TextButton(
               onPressed: () {
@@ -461,7 +551,5 @@ class _DoctorProfilePageState extends State<DoctorProfilePage>
       },
     );
   }
-
-
 
 }
